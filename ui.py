@@ -66,7 +66,7 @@ def count_nodes(node):
     return total, completed
 
 def header_panel():
-    text = Text("LAB MATRIX RESEARCH CLI", style="bold bright_green on black", justify="center")
+    text = Text("RESEARCH LAB", style="bold bright_green on black", justify="center")
     return Panel(Align.center(text), border_style="bright_green", padding=(1, 2))
 
 async def run_research(ds, query, breadth, depth):
