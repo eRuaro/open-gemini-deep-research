@@ -225,9 +225,9 @@ class DeepSearch:
         max_questions: int = 3,
     ):
         user_prompt = f"""
-		Given the following query from the user, ask some follow up questions to clarify the research direction.
+        Étant donné la requête suivante de l'utilisateur, posez quelques questions complémentaires pour clarifier l'orientation de la recherche.
 
-		Return a maximum of {max_questions} questions, but feel free to return less if the original query is clear: <query>{query}</query>
+        Renvoie un maximum de {max_questions} questions, mais n'hésitez pas à en renvoyer moins si la requête d'origine est claire : <query>{query}</query>
 		"""
 
         generation_config = {
@@ -277,13 +277,12 @@ class DeepSearch:
                 "\n".join([f"- {q}" for q in previous_queries])
 
         user_prompt = f"""
-        Given the following prompt from the user, generate a list of SERP queries to research the topic. Return a maximum
-        of {num_queries} queries, but feel free to return less if the original prompt is clear.
+        Compte tenu de l'invite suivante de l'utilisateur, générez une liste de requêtes SERP pour rechercher le sujet. Renvoie un maximum de {num_queries} requêtes, mais n'hésitez pas à en renvoyer moins si l'invite d'origine est claire.
 
-        IMPORTANT: Each query must be unique and significantly different from both each other AND the previously asked queries.
-        Avoid semantic duplicates or queries that would likely return similar information.
+        IMPORTANT : chaque requête doit être unique et sensiblement différente des autres ET des requêtes posées précédemment.
+        Évitez les doublons sémantiques ou les requêtes susceptibles de renvoyer des informations similaires.
 
-        Original prompt: <prompt>${query}</prompt>
+        Invite d'origine : <prompt>${query}</prompt>
         {previous_queries_text}
         """
 
@@ -436,7 +435,7 @@ class DeepSearch:
         print(f"Processing result for query: {query}")
 
         user_prompt = f"""
-		Given the following result from a SERP search for the query <query>{query}</query>, generate a list of learnings from the result. Return a maximum of {num_learnings} learnings, but feel free to return less if the result is clear. Make sure each learning is unique and not similar to each other. The learnings should be concise and to the point, as detailed and information dense as possible. Make sure to include any entities like people, places, companies, products, things, etc in the learnings, as well as any exact metrics, numbers, or dates. The learnings will be used to research the topic further.
+		Étant donné le résultat suivant d'une recherche SERP pour la requête <query>{query}</query>, générez une liste d'apprentissages à partir du résultat. Renvoyez un maximum de {num_learnings} apprentissages, mais n'hésitez pas à en renvoyer moins si le résultat est clair. Assurez-vous que chaque apprentissage est unique et ne ressemble pas aux autres. Les apprentissages doivent être concis et précis, aussi détaillés et riches en informations que possible. Assurez-vous d'inclure toutes les entités telles que les personnes, les lieux, les entreprises, les produits, les objets, etc. dans les apprentissages, ainsi que toutes les mesures, chiffres ou dates exacts. Les apprentissages seront utilisés pour approfondir les recherches sur le sujet.
 		"""
 
         generation_config = {
@@ -488,19 +487,19 @@ class DeepSearch:
     def _are_queries_similar(self, query1: str, query2: str) -> bool:
         """Helper method to check if two queries are semantically similar using Gemini"""
         user_prompt = f"""
-        Compare these two search queries and determine if they are semantically similar 
-        (i.e., would likely return similar search results or are asking about the same topic):
+        Comparez ces deux requêtes de recherche et déterminez si elles sont sémantiquement similaires
+        (c'est-à-dire si elles sont susceptibles de renvoyer des résultats de recherche similaires ou si elles portent sur le même sujet) :
 
-        Query 1: {query1}
-        Query 2: {query2}
+        Requête 1 : {query1}
+        Requête 2 : {query2}
 
-        Consider:
-        1. Key concepts and entities
-        2. Intent of the queries
-        3. Scope and specificity
-        4. Core topic overlap
+        Tenez compte de :
+        1. Concepts et entités clés
+        2. Intention des requêtes
+        3. Portée et spécificité
+        4. Chevauchement des sujets principaux
 
-        Only respond with true if the queries are notably similar, false otherwise.
+        Ne répondez que par vrai si les requêtes sont sensiblement similaires, sinon par faux.
         """
 
         generation_config = {
@@ -656,51 +655,51 @@ class DeepSearch:
         learnings_text = "\n".join([f"- {learning}" for learning in learnings])
 
         user_prompt = f"""
-        You are a creative research analyst tasked with synthesizing findings into an engaging and informative report.
-        Create a comprehensive research report (minimum 3000 words) based on the following query and findings.
-        
-        Original Query: {query}
-        
-        Key Findings:
+        Vous êtes un analyste de recherche créatif chargé de synthétiser les résultats dans un rapport engageant et informatif.
+        Créez un rapport de recherche complet (minimum 3000 mots) basé sur la requête et les résultats suivants.
+
+        Requête d'origine : {query}
+
+        Principales conclusions :
         {learnings_text}
-        
-        Sources Used:
+
+        Sources utilisées :
         {sources_text}
-        
-        Guidelines:
-        1. Design a creative and engaging report structure that best fits the content and topic
-        2. Feel free to use any combination of:
-           - Storytelling elements
-           - Case studies
-           - Scenarios
-           - Visual descriptions
-           - Analogies and metaphors
-           - Creative section headings
-           - Thought experiments
-           - Future projections
-           - Historical parallels
-        3. Make the report engaging while maintaining professionalism
-        4. Include all relevant data points but present them in an interesting way
-        5. Structure the information in whatever way makes the most logical sense for this specific topic
-        6. Feel free to break conventional report formats if a different approach would be more effective
-        7. Consider using creative elements like:
-           - "What if" scenarios
-           - Day-in-the-life examples
-           - Before/After comparisons
-           - Expert perspectives
-           - Trend timelines
-           - Problem-solution frameworks
-           - Impact matrices
-        
-        Requirements:
-        - Minimum 3000 words
-        - Must include all key findings and data points
-        - Must maintain factual accuracy
-        - Must be well-organized and easy to follow
-        - Must include clear conclusions and insights
-        - Must cite sources appropriately
-        
-        Be bold and creative in your approach while ensuring the report effectively communicates all the important information!
+
+        Directives :
+        1. Concevez une structure de rapport créative et attrayante qui corresponde le mieux au contenu et au sujet
+        2. N'hésitez pas à utiliser n'importe quelle combinaison de :
+        - Éléments de narration
+        - Études de cas
+        - Scénarios
+        - Descriptions visuelles
+        - Analogies et métaphores
+        - Titres de section créatifs
+        - Expériences de pensée
+        - Projections futures
+        - Parallèles historiques
+        3. Rendre le rapport attrayant tout en conservant le professionnalisme
+        4. Inclure tous les points de données pertinents, mais les présenter de manière intéressante
+        5. Structurer les informations de la manière la plus logique pour ce sujet spécifique
+        6. N'hésitez pas à rompre avec les formats de rapport conventionnels si une approche différente serait plus efficace
+        7. Envisagez d'utiliser des éléments créatifs tels que :
+        - Scénarios « Et si »
+        - Exemples de la vie quotidienne
+        - Comparaisons avant/après
+        - Perspectives d'experts
+        - Chronologies des tendances
+        - Cadres problème-solution
+        - Impact matrices
+
+        Exigences :
+        - Au moins 3 000 mots
+        - Doit inclure tous les principaux résultats et points de données
+        - Doit maintenir l'exactitude des faits
+        - Doit être bien organisé et facile à suivre
+        - Doit inclure des conclusions et des idées claires
+        - Doit citer les sources de manière appropriée
+
+        Soyez audacieux et créatif dans votre approche tout en veillant à ce que le rapport communique efficacement toutes les informations importantes !
         """
 
         generation_config = {

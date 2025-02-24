@@ -1,0 +1,37 @@
+name: Bug Report
+description: Report a bug
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Report a bug in Deep Research CLI"
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Project version
+    validations:
+      required: true
+  - type: dropdown
+    id: python-version
+    attributes:
+      label: Python Version
+      options:
+        - "3.8"
+        - "3.9"
+        - "3.10"
+        - "3.11"
+        - "3.12"
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example Code
+      description: Minimal example to reproduce
+      render: python

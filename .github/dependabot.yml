@@ -1,0 +1,36 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "pip"
+    reviewers:
+      - "OWNER"
+    groups:
+      python-packages:
+        patterns: ["*"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "ci"
+      - "dependencies"
+    reviewers:
+      - "OWNER"
+    groups:
+      github-actions:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "actions/*"
+        update-types: ["version-update:semver-patch"]
