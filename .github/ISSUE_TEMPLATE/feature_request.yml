@@ -1,0 +1,36 @@
+name: Demande de fonctionnalité
+description: Suggérer une nouvelle fonctionnalité pour Deep Research CLI
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # Demande de fonctionnalité Deep Research
+        Merci de suggérer une amélioration!
+        Veuillez fournir autant de détails que possible sur votre idée.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Description du problème
+      description: Votre demande de fonctionnalité est-elle liée à un problème? Veuillez le décrire.
+      placeholder: "Je suis toujours frustré(e) quand..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution proposée
+      description: Décrivez la solution que vous aimeriez voir implémentée
+      placeholder: "Ce serait génial si..."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées
+      description: Décrivez les solutions ou fonctionnalités alternatives que vous avez envisagées
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexte supplémentaire
+      description: Ajoutez tout autre contexte ou captures d'écran concernant cette demande

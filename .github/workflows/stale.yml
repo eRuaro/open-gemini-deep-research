@@ -1,0 +1,21 @@
+name: Mark stale issues and pull requests
+
+on:
+  schedule:
+    - cron: '30 1 * * *'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-issue-message: 'Cette issue est inactive depuis un certain temps. Elle sera fermée dans 14 jours si aucune activité n\'est observée.'
+          stale-pr-message: 'Cette pull request est inactive depuis un certain temps. Elle sera fermée dans 14 jours si aucune activité n\'est observée.'
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          days-before-stale: 60
+          days-before-close: 14
+          exempt-issue-labels: 'pinned,security,enhancement'
+          exempt-pr-labels: 'pinned,security,enhancement'

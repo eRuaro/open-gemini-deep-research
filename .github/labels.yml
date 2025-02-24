@@ -1,0 +1,63 @@
+- name: "bug"
+  color: "d73a4a"
+  description: "Quelque chose ne fonctionne pas comme prévu"
+
+- name: "documentation"
+  color: "0075ca"
+  description: "Améliorations ou ajouts à la documentation"
+
+- name: "enhancement"
+  color: "a2eeef"
+  description: "Nouvelles fonctionnalités ou améliorations"
+
+- name: "good first issue"
+  color: "7057ff"
+  description: "Bon pour les nouveaux contributeurs"
+
+- name: "help wanted"
+  color: "008672"
+  description: "Aide supplémentaire nécessaire"
+
+- name: "question"
+  color: "d876e3"
+  description: "Questions nécessitant plus d'informations"
+
+- name: "dependencies"
+  color: "0366d6"
+  description: "Mises à jour de dépendances"
+
+- name: "pip"
+  color: "2b67c6"
+  description: "Concernant les dépendances Python"
+
+- name: "ci"
+  color: "0e8a16"
+  description: "Concernant l'intégration continue"
+
+- name: "triage"
+  color: "d4c5f9"
+  description: "Nécessite un tri ou une évaluation"
+
+- name: "duplicate"
+  color: "cfd3d7"
+  description: "Problème ou demande déjà existant"
+
+- name: "invalid"
+  color: "e4e669"
+  description: "Ne semble pas correct ou lié au projet"
+
+- name: "wontfix"
+  color: "ffffff"
+  description: "Ne sera pas résolu pour le moment"
+
+- name: "performance"
+  color: "ffbf00"
+  description: "Concernant les performances de l'application"
+
+- name: "ui"
+  color: "fbca04"
+  description: "Concernant l'interface utilisateur"
+
+- name: "security"
+  color: "b60205"
+  description: "Concernant les vulnérabilités de sécurité"

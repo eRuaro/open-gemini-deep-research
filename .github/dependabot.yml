@@ -3,34 +3,32 @@ updates:
   - package-ecosystem: pip
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
     commit-message:
       prefix: "deps"
       include: "scope"
     labels:
       - "dependencies"
       - "pip"
-    reviewers:
-      - "OWNER"
     groups:
       python-packages:
         patterns: ["*"]
+    open-pull-requests-limit: 10
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "monthly"
     commit-message:
       prefix: "chore"
       include: "scope"
     labels:
       - "ci"
       - "dependencies"
-    reviewers:
-      - "OWNER"
     groups:
       github-actions:
         patterns: ["*"]
     ignore:
       - dependency-name: "actions/*"
         update-types: ["version-update:semver-patch"]
+    open-pull-requests-limit: 5

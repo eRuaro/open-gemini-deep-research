@@ -1,37 +1,67 @@
 name: Bug Report
-description: Report a bug
-labels: ["bug"]
+description: Signaler un bug dans Deep Research CLI
+labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
-      value: "Report a bug in Deep Research CLI"
+      value: |
+        # Rapport de bug Deep Research
+        Merci de prendre le temps de nous signaler ce problème.
+        Veuillez fournir les informations ci-dessous pour nous aider à résoudre rapidement votre problème.
   - type: input
     id: version
     attributes:
       label: Version
-      description: Project version
+      description: Quelle version de Deep Research utilisez-vous?
+      placeholder: "1.0.0"
     validations:
       required: true
   - type: dropdown
     id: python-version
     attributes:
-      label: Python Version
+      label: Version Python
       options:
         - "3.8"
         - "3.9"
         - "3.10"
         - "3.11"
         - "3.12"
+        - "Autre (préciser dans la description)"
+    validations:
+      required: true
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Système d'exploitation
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Autre (préciser dans la description)
+    validations:
+      required: true
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: What happened?
+      description: Que s'est-il passé et qu'attendiez-vous?
+      placeholder: "Décrivez le bug en détail. Incluez des captures d'écran si nécessaire."
     validations:
       required: true
   - type: textarea
-    id: example
+    id: steps
     attributes:
-      label: Example Code
-      description: Minimal example to reproduce
-      render: python
+      label: Étapes pour reproduire
+      description: Comment reproduire ce bug?
+      placeholder: |
+        1. Installer Deep Research
+        2. Exécuter `python -m src.main ...`
+        3. Voir l'erreur
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs d'erreur
+      description: Incluez tous les messages d'erreur ou logs
+      render: shell

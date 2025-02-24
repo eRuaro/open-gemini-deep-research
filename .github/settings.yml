@@ -1,9 +1,10 @@
 repository:
   name: deep_research
-  description: Deep Research CLI with Rich Interface
+  description: "Deep Research CLI: Exploration intelligente multi-couche propulsée par l'IA de Google Gemini"
+  topics: gemini, research, cli, rich-interface, ai-assistant
   private: false
   has_issues: true
-  has_projects: false
+  has_projects: true
   has_wiki: false
   has_downloads: true
   default_branch: main
@@ -11,6 +12,8 @@ repository:
   allow_merge_commit: false
   allow_rebase_merge: true
   delete_branch_on_merge: true
+  enable_automated_security_fixes: true
+  enable_vulnerability_alerts: true
 
 branches:
   - name: main
@@ -20,6 +23,9 @@ branches:
         dismiss_stale_reviews: true
       required_status_checks:
         strict: true
-        contexts: ["CI"]
+        contexts: ["Python 3.11 on ubuntu-latest"]
       enforce_admins: false
       restrictions: null
+      required_linear_history: true
+      allow_force_pushes: false
+      allow_deletions: false

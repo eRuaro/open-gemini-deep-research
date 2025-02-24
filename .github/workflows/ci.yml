@@ -7,6 +7,7 @@ on:
       - '*.md'
       - 'LICENSE'
       - '.gitignore'
+      - '.github/ISSUE_TEMPLATE/**'
   pull_request:
     branches: [ main ]
 
@@ -28,15 +29,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          
-      - name: Clean build artifacts
-        run: python -c "import shutil; import os; [shutil.rmtree(p) for p in ['build', 'dist', *[d for d in os.listdir('.') if d.endswith('.egg-info')]] if os.path.exists(p)]"
+          cache: 'pip'
           
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -c "import os; os.path.exists('requirements.txt') and __import__('subprocess').run(['pip', 'install', '-r', 'requirements.txt'])"
+          python -m pip install -r requirements.txt
           
-      - name: Quality checks
+      - name: Lint code
         run: |
-          python -c "import os, sys; ui_exists = os.path.exists('ui.py'); sys.exit(0 if not ui_exists else 0 if os.path.getsize('ui.py') < 1024 and 'def main' in open('ui.py').read() else 1)"
+          pip install flake8
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        
+      - name: Validate Deep Research modules
+        run: |
+          python -c "import os; assert os.path.exists('src/deep_research.py'), 'deep_research.py not found'"
+          python -c "import os; assert os.path.exists('ui.py'), 'ui.py not found'"
