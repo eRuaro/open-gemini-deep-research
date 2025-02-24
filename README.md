@@ -1,215 +1,280 @@
-# Open Gemini Deep Research
+# <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Magnifying%20Glass%20Tilted%20Right.png" alt="Magnifying Glass" width="35" /> Open Gemini Deep Research
 
-A powerful open-source research assistant powered by Google's Gemini AI that performs deep, multi-layered research on any topic.
+<div align="center">
+  <p>
+    <img alt="Version" src="https://img.shields.io/badge/version-1.0.0-blue.svg?cacheSeconds=2592000&style=flat-square" />
+    <img alt="Python" src="https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue?style=flat-square&logo=python" />
+    <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" />
+  </p>
 
-## Features
+  <h3>Un assistant de recherche open-source surpuissant propulsé par l'IA Gemini de Google</h3>
+  <p>Exploration multi-couche approfondie sur n'importe quel sujet</p>
+</div>
 
-- Automated deep research with adjustable breadth and depth
-- Follow-up question generation for better context
-- Concurrent processing of multiple research queries
-- Comprehensive final report generation with citations
-- Three research modes: fast, balanced, and comprehensive
-- Progress tracking and detailed logging
-- Source tracking and citation management
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Rocket.png" alt="Rocket" width="25"/> Fonctionnalités
 
-## Prerequisites
+<table>
+  <tr>
+    <td>
+      <ul>
+        <li>🔍 Recherche profonde automatisée à largeur et profondeur ajustables</li>
+        <li>🤔 Génération intelligente de questions de suivi</li>
+        <li>⚡ Traitement concurrent de multiples requêtes</li>
+        <li>📝 Génération de rapports détaillés avec citations</li>
+      </ul>
+    </td>
+    <td>
+      <ul>
+        <li>🚀 Trois modes de recherche: rapide, équilibré et exhaustif</li>
+        <li>📊 Suivi de progression avec visualisation d'arborescence</li>
+        <li>🔗 Gestion de sources avec citations en ligne</li>
+        <li>🌐 Interface visuelle riche et intuitive</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-- Python 3.9+
-- Google Gemini API key
-- Docker (if using dev container)
-- VS Code with Dev Containers extension (if using dev container)
 
-## Installation
 
-You can set up this project in one of two ways:
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Gear.png" alt="Gear" width="25"/> Prérequis
 
-### Option 1: Using Dev Container (Recommended)
+- Python 3.8+
+- Clé API Google Gemini
+- Docker (si utilisation du conteneur de développement)
+- VS Code avec l'extension Dev Containers (si utilisation du conteneur)
 
-1. Open the project in VS Code
-2. When prompted, click "Reopen in Container" or run the "Dev Containers: Reopen in Container" command
-3. Create a `.env` file in the root directory and add your Gemini API key:
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Package.png" alt="Package" width="25"/> Installation
+
+<details>
+<summary><b>Option 1: Utilisation du conteneur de développement (Recommandé)</b></summary>
+<br>
+
+1. Ouvrez le projet dans VS Code
+2. Quand vous y êtes invité, cliquez sur "Rouvrir dans un conteneur" ou exécutez la commande "Dev Containers: Reopen in Container"
+3. Créez un fichier `.env` dans le répertoire racine et ajoutez votre clé API Gemini:
    ```
    GEMINI_KEY=your_api_key_here
    ```
+</details>
 
-### Option 2: Local Installation
+<details>
+<summary><b>Option 2: Installation locale</b></summary>
+<br>
 
-1. Clone the repository:
+1. Clonez le dépôt:
    ```bash
-   git clone <repository-url>
-   cd open-gemini-deep-research
+   git clone https://github.com/FeelTheFonk/open-gemini-deep-research
+   cd deep_research
    ```
 
-2. Create and activate a virtual environment (recommended):
+2. Créez et activez un environnement virtuel (recommandé):
    ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   source venv/bin/activate  # Sur Windows: venv\Scripts\activate
    ```
 
-3. Install dependencies:
+3. Installez les dépendances:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Create a `.env` file in the root directory and add your Gemini API key:
+4. Créez un fichier `.env` dans le répertoire racine et ajoutez votre clé API Gemini:
    ```
    GEMINI_KEY=your_api_key_here
    ```
+</details>
 
-## Usage
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Joystick.png" alt="Joystick" width="25"/> Utilisation
 
-Run the main script with your research query:
 ```bash
-python main.py "your research query here"
+python main.py "votre requête de recherche ici"
 ```
 
-### Optional Arguments
+### Arguments optionnels
 
-- `--mode`: Research mode (choices: fast, balanced, comprehensive) [default: balanced]
-- `--num-queries`: Number of queries to generate [default: 3]
-- `--learnings`: List of previous learnings [optional]
+<table>
+  <tr>
+    <th>Argument</th>
+    <th>Description</th>
+    <th>Valeurs</th>
+    <th>Défaut</th>
+  </tr>
+  <tr>
+    <td><code>--mode</code></td>
+    <td>Mode de recherche</td>
+    <td>fast, balanced, comprehensive</td>
+    <td>balanced</td>
+  </tr>
+  <tr>
+    <td><code>--num-queries</code></td>
+    <td>Nombre de requêtes à générer</td>
+    <td>entier</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td><code>--learnings</code></td>
+    <td>Liste d'apprentissages précédents</td>
+    <td>liste de chaînes</td>
+    <td>[]</td>
+  </tr>
+</table>
 
-Example:
+#### Exemple:
+
 ```bash
-python main.py "Impact of artificial intelligence on healthcare" --mode comprehensive --num-queries 5
+python main.py "Impact de l'intelligence artificielle sur la santé" --mode comprehensive --num-queries 5
 ```
 
+### Interface graphique
 
-## Output
+Pour utiliser l'interface utilisateur Rich:
 
-The script will:
-1. Analyze your query for optimal research parameters
-2. Ask follow-up questions for clarification
-3. Conduct multi-layered research
-4. Generate a comprehensive report saved as `final_report.md`
-5. Show progress updates throughout the process
+```bash
+python ui.py
+```
 
-## Project Structure
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Clipboard.png" alt="Clipboard" width="25"/> Workflow
+
+Le script va:
+
+1. Analyser votre requête pour déterminer les paramètres optimaux
+2. Poser des questions de suivi pour clarification
+3. Mener une recherche multi-couche
+4. Générer un rapport complet sauvegardé en tant que `final_report.md`
+5. Afficher des mises à jour de progression tout au long du processus
+6. Générer une visualisation interactive des connaissances (optionnel)
+
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Card%20File%20Box.png" alt="Structure" width="25"/> Structure du projet
 
 ```
-open-gemini-deep-research/
-├── .devcontainer/
-│   └── devcontainer.json
+deep_research/
+├── .github/                   # Configuration GitHub et workflows
 ├── src/
 │   ├── __init__.py
-│   └── deep_research.py
-├── .env
+│   └── deep_research.py       # Moteur de recherche principal
+├── .env                       # Variables d'environnement (non suivi)
 ├── .gitignore
-├── dockerfile
-├── main.py
+├── main.py                    # Point d'entrée CLI
+├── ui.py                      # Interface utilisateur Rich
 ├── README.md
-└── requirements.txt
+└── requirements.txt           # Dépendances
 ```
 
-## How It Works
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Light%20Bulb.png" alt="Light Bulb" width="25"/> Fonctionnement
 
-### Research Modes
+### Modes de recherche
 
-The application offers three research modes that affect how deeply and broadly the research is conducted:
+<table>
+  <tr>
+    <th align="center">⚡ Rapide</th>
+    <th align="center">⚖️ Équilibré</th>
+    <th align="center">🔍 Exhaustif</th>
+  </tr>
+  <tr>
+    <td>
+      • Recherche de surface rapide<br/>
+      • Max 3 requêtes concurrentes<br/>
+      • Pas de plongée récursive<br/>
+      • 2-3 questions par requête<br/>
+      • ~1-3 minutes
+    </td>
+    <td>
+      • Profondeur et largeur modérées<br/>
+      • Max 7 requêtes concurrentes<br/>
+      • Pas de plongée récursive<br/>
+      • 3-5 questions par requête<br/>
+      • ~3-6 minutes
+    </td>
+    <td>
+      • Recherche détaillée exhaustive<br/>
+      • 5 requêtes + plongée récursive<br/>
+      • Exploration de relations tertiaires<br/>
+      • 5-7 questions avec exploration récursive<br/>
+      • ~5-12 minutes
+    </td>
+  </tr>
+</table>
 
-1. **Fast Mode**
-   - Performs quick, surface-level research
-   - Maximum of 3 concurrent queries
-   - No recursive deep diving
-   - Typically generates 2-3 follow-up questions per query
-   - Best for time-sensitive queries or initial exploration
-   - Processing time: ~1-3 minutes
+### Processus de recherche
 
-2. **Balanced Mode** (Default)
-   - Provides moderate depth and breadth
-   - Maximum of 7 concurrent queries
-   - No recursive deep diving
-   - Generates 3-5 follow-up questions per query
-   - Explores main concepts and their immediate relationships
-   - Processing time: ~3-6 minutes
-   - Recommended for most research needs
+<ol>
+  <li><strong>Analyse de requête</strong>
+    <ul>
+      <li>Évalue la complexité et l'étendue</li>
+      <li>Définit la largeur (1-10) et profondeur (1-5)</li>
+      <li>Ajuste les paramètres selon le mode</li>
+    </ul>
+  </li>
+  <li><strong>Génération de requêtes</strong>
+    <ul>
+      <li>Crée des requêtes uniques non-redondantes</li>
+      <li>Vérifie la similarité sémantique</li>
+      <li>Maintient l'historique pour éviter les doublons</li>
+    </ul>
+  </li>
+  <li><strong>Construction d'arborescence</strong>
+    <ul>
+      <li>Structure en arbre pour suivre la progression</li>
+      <li>Identifiants UUID uniques</li>
+      <li>Relations parent-enfant entre requêtes</li>
+      <li>Visualisation détaillée via JSON</li>
+    </ul>
+  </li>
+  <li><strong>Recherche approfondie</strong> (Mode exhaustif)
+    <ul>
+      <li>Stratégie de recherche récursive</li>
+      <li>Réduction de largeur aux niveaux profonds</li>
+      <li>Déduplication des URLs visitées</li>
+    </ul>
+  </li>
+  <li><strong>Génération de rapport</strong>
+    <ul>
+      <li>Synthèse narrative cohérente</li>
+      <li>Rapport détaillé d'au moins 3000 mots</li>
+      <li>Citations en ligne et gestion des sources</li>
+      <li>Éléments créatifs (scénarios, analogies)</li>
+    </ul>
+  </li>
+</ol>
 
-3. **Comprehensive Mode**
-   - Conducts exhaustive, in-depth research
-   - Maximum of 5 initial queries, but includes recursive deep diving
-   - Each query can spawn sub-queries that go deeper into the topic
-   - Generates 5-7 follow-up questions with recursive exploration
-   - Explores primary, secondary, and tertiary relationships
-   - Includes counter-arguments and alternative viewpoints
-   - Processing time: ~5-12 minutes
-   - Best for academic or detailed analysis
+### Implémentation technique
 
-### Research Process
+L'application utilise l'IA Gemini de Google pour:
+- Analyse et génération de requêtes
+- Traitement et synthèse de contenu
+- Vérification de similarité sémantique
+- Génération de rapports
 
-1. **Query Analysis**
-   - Analyzes initial query to determine optimal research parameters
-   - Assigns breadth (1-10 scale) and depth (1-5 scale) values
-   - Adjusts parameters based on query complexity and chosen mode
+L'arborescence de recherche est implémentée via la classe `ResearchProgress` qui suit:
+- Relations entre requêtes (parent-enfant)
+- État de complétion des requêtes
+- Apprentissages par requête
+- Ordre des requêtes
+- IDs uniques pour chaque requête
 
-2. **Query Generation**
-   - Creates unique, non-overlapping search queries
-   - Uses semantic similarity checking to avoid redundant queries
-   - Maintains query history to prevent duplicates
-   - Adapts number of queries based on mode settings
-
-3. **Research Tree Building**
-   - Implements a tree structure to track research progress
-   - Each query gets a unique UUID for tracking
-   - Maintains parent-child relationships between queries
-   - Tracks query order and completion status
-   - Provides detailed progress visualization through JSON tree structure
-
-4. **Deep Research** (Comprehensive Mode)
-   - Implements recursive research strategy
-   - Each query can generate one follow-up query
-   - Reduces breadth at deeper levels (breadth/2)
-   - Maintains visited URLs to avoid duplicates
-   - Combines learnings from all levels
-
-5. **Report Generation**
-   - Synthesizes findings into a coherent narrative
-   - Minimum 3000-word detailed report
-   - Includes inline citations and source tracking
-   - Organizes information by relevance and relationship
-   - Adds creative elements like scenarios and analogies
-   - Maintains factual accuracy while being engaging
-
-### Technical Implementation
-
-- Uses Google's Gemini AI for:
-  - Query analysis and generation
-  - Content processing and synthesis
-  - Semantic similarity checking
-  - Report generation
-- Implements concurrent processing for queries
-- Uses progress tracking system with tree visualization
-- Maintains research tree structure for relationship mapping
-
-#### Research Tree Implementation
-
-The research tree is implemented through the `ResearchProgress` class that tracks:
-- Query relationships (parent-child)
-- Query completion status
-- Learnings per query
-- Query order
-- Unique IDs for each query
-
-The complete research tree structure is automatically saved to `research_tree.json` when generating the final report, allowing for later analysis or visualization of the research process.
-
-Example tree structure:
+Exemple de structure d'arbre:
 ```json
 {
-  "query": "root query",
+  "query": "requête racine",
   "id": "uuid-1",
   "status": "completed",
   "depth": 2,
-  "learnings": ["learning 1", "learning 2"],
+  "learnings": ["apprentissage 1", "apprentissage 2"],
   "sub_queries": [
     {
-      "query": "sub-query 1",
+      "query": "sous-requête 1",
       "id": "uuid-2",
       "status": "completed",
       "depth": 1,
-      "learnings": ["learning 3"],
+      "learnings": ["apprentissage 3"],
       "sub_queries": [],
-      "parent_query": "root query"
+      "parent_query": "requête racine"
     }
   ],
   "parent_query": null
 }
 ```
+
+<div align="center">
+<p>Explorez les idées. Connectez les connaissances. Découvrez.</p>
+</div>
