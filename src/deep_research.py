@@ -6,6 +6,7 @@ import os
 import uuid
 import time
 import random
+import re
 
 import math
 
@@ -177,6 +178,10 @@ class DeepSearch:
         self.max_retries = 3  # Maximum number of retries per model
         self.cooldown_period = 60  # Cooldown period for a model in seconds after a 429
         genai.configure(api_key=self.api_key)
+        
+        # Ensure results directory exists
+        self.results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+        os.makedirs(self.results_dir, exist_ok=True)
 
     def get_current_model(self):
         """Get the current model to use for API calls"""
@@ -622,6 +627,19 @@ class DeepSearch:
             # In case of error, assume queries are different to avoid missing potentially unique results
             return False
 
+    def _sanitize_filename(self, query: str) -> str:
+        """Convert a query to a valid filename by removing invalid characters and truncating if needed"""
+        # Replace invalid filename characters with underscores
+        sanitized = re.sub(r'[\\/*?:"<>|]', "_", query)
+        # Replace spaces with underscores for better filenames
+        sanitized = sanitized.replace(" ", "_")
+        # Truncate if too long (max 100 chars for filename)
+        if len(sanitized) > 100:
+            sanitized = sanitized[:97] + "..."
+        # Add timestamp to ensure uniqueness
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"{sanitized}_{timestamp}"
+
     async def deep_research(self, query: str, breadth: int, depth: int, learnings: list[str] = [], visited_urls: dict[int, dict] = {}, parent_query: str = None):
         progress = ResearchProgress(depth, breadth)
         
@@ -725,16 +743,27 @@ class DeepSearch:
         # Complete the root query after all sub-queries are done
         progress.complete_query(query, depth)
 
-        # save the tree structure to a json file
-        with open("research_tree.json", "w") as f:
+        # Create sanitized filename from query
+        sanitized_query = self._sanitize_filename(query)
+        
+        # Save the tree structure to a json file in results folder
+        tree_filename = os.path.join(self.results_dir, f"research_tree_{sanitized_query}.json")
+        with open(tree_filename, "w") as f:
             json.dump(progress._build_research_tree(), f)
+        
+        print(f"\nResearch tree saved to: {tree_filename}")
 
         return {
             "learnings": all_learnings,
-            "visited_urls": all_urls
+            "visited_urls": all_urls,
+            "sanitized_query": sanitized_query  # Return this for use in generate_final_report
         }
 
-    def generate_final_report(self, query: str, learnings: list[str], visited_urls: dict[int, dict]) -> str:
+    def generate_final_report(self, query: str, learnings: list[str], visited_urls: dict[int, dict], sanitized_query: str = None) -> str:
+        # If no sanitized_query provided, create one
+        if sanitized_query is None:
+            sanitized_query = self._sanitize_filename(query)
+            
         # Format sources and learnings for the prompt
         sources_text = "\n".join([
             f"- {data['title']}: {data['link']}"
@@ -820,8 +849,17 @@ class DeepSearch:
             f"- [{data['title']}]({data['link']})"
             for data in visited_urls.values()
         ])
+        
+        report_content = formatted_text + sources_section
+        
+        # Save the report to a file in the results folder
+        report_filename = os.path.join(self.results_dir, f"report_{sanitized_query}.md")
+        with open(report_filename, "w", encoding="utf-8") as f:
+            f.write(report_content)
+            
+        print(f"\nFinal report saved to: {report_filename}")
 
-        return formatted_text + sources_section
+        return report_content
 
 
 
