@@ -43,6 +43,37 @@ st.markdown("""
         font-size: 0.9rem;
         color: #6c757d;
     }
+    .status-completed {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .status-in-progress {
+        color: #ffc107;
+        font-weight: bold;
+    }
+    .research-tree-node {
+        margin-left: 20px;
+        padding: 10px;
+        border-left: 3px solid #4b6fff;
+        margin-bottom: 10px;
+    }
+    .research-tree-node-completed {
+        border-left: 3px solid #28a745;
+    }
+    .research-tree-node-in-progress {
+        border-left: 3px solid #ffc107;
+    }
+    .progress-bar-container {
+        width: 100%;
+        background-color: #e9ecef;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .progress-bar {
+        height: 10px;
+        border-radius: 5px;
+        background-color: #4b6fff;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -107,7 +138,7 @@ def display_research_tree(tree_data):
             // Add circles to nodes
             nodes.append("circle")
                 .attr("r", 6)
-                .style("fill", d => d.data.status === "completed" ? "#4CAF50" : "#FFC107")
+                .style("fill", d => d.data.status === "completed" ? "#28a745" : "#ffc107")
                 .style("stroke", "#fff")
                 .style("stroke-width", "2px");
             
@@ -122,6 +153,13 @@ def display_research_tree(tree_data):
                     return query.length > 30 ? query.substring(0, 30) + "..." : query;
                 })
                 .style("font-size", "12px");
+            
+            // Add tooltips with full query text and learning count
+            nodes.append("title")
+                .text(d => {
+                    const learningCount = d.data.learnings ? d.data.learnings.length : 0;
+                    return `${d.data.query}\n\nStatus: ${d.data.status}\nLearnings: ${learningCount}\nDepth: ${d.data.depth}`;
+                });
         }
         
         // Call the visualization with the data
@@ -129,19 +167,124 @@ def display_research_tree(tree_data):
     </script>
     """, unsafe_allow_html=True)
 
+# Function to display a simple text-based research tree
+def display_text_tree(tree_data, level=0):
+    if not tree_data:
+        return st.write("No research tree data available.")
+    
+    # Root node
+    status_class = "status-completed" if tree_data["status"] == "completed" else "status-in-progress"
+    node_class = f"research-tree-node research-tree-node-{tree_data['status']}"
+    
+    if level == 0:
+        st.markdown(f"""
+        <div class="{node_class}">
+            <h4>📊 Root Query: <span class="{status_class}">{tree_data["query"][:50]}{"..." if len(tree_data["query"]) > 50 else ""}</span></h4>
+            <p>Status: <span class="{status_class}">{tree_data["status"].upper()}</span> | Depth: {tree_data["depth"]} | Learnings: {len(tree_data["learnings"])}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        prefix = "&nbsp;" * 4 * level
+        emoji = "✅" if tree_data["status"] == "completed" else "🔄"
+        st.markdown(f"""
+        <div class="{node_class}" style="margin-left: {level * 20}px;">
+            <p>{prefix} {emoji} <span class="{status_class}">{tree_data["query"][:50]}{"..." if len(tree_data["query"]) > 50 else ""}</span></p>
+            <p>{prefix} Status: <span class="{status_class}">{tree_data["status"].upper()}</span> | Depth: {tree_data["depth"]} | Learnings: {len(tree_data["learnings"])}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Child nodes
+    for child in tree_data["sub_queries"]:
+        display_text_tree(child, level + 1)
+
+# Function to display progress bar
+def display_progress_bar(completed, total):
+    if total == 0:
+        percent = 0
+    else:
+        percent = (completed / total) * 100
+    
+    st.markdown(f"""
+    <div class="progress-bar-container">
+        <div class="progress-bar" style="width: {percent}%"></div>
+    </div>
+    <p>Progress: {completed}/{total} queries completed ({percent:.1f}%)</p>
+    """, unsafe_allow_html=True)
+
 # Function to download a file
-def get_binary_file_downloader_html(file_path, file_label='File'):
+def get_binary_file_downloader_html(file_path, file_label='File', button_text="Download File"):
     with open(file_path, 'rb') as f:
         data = f.read()
     b64 = base64.b64encode(data).decode()
-    href = f'<a href="data:file/txt;base64,{b64}" download="{os.path.basename(file_path)}">{file_label}</a>'
-    return href
+    button_uuid = f'download-button-{base64.b64encode(os.path.basename(file_path).encode()).decode()}'
+    button_html = f'''
+        <a href="data:file/txt;base64,{b64}" id="{button_uuid}" 
+           download="{os.path.basename(file_path)}" 
+           style="text-decoration: none; color: white;">
+            <button style="background-color: #4CAF50; color: white; padding: 8px 16px;
+                    border: none; border-radius: 4px; cursor: pointer;">
+                {button_text}
+            </button>
+        </a>
+    '''
+    return button_html
+
+# Function to calculate research tree statistics
+def calculate_tree_stats(tree_data):
+    if not tree_data:
+        return {"total_nodes": 0, "completed": 0, "in_progress": 0, "total_learnings": 0, "by_depth": {}}
+    
+    stats = {"total_nodes": 0, "completed": 0, "in_progress": 0, "total_learnings": 0, "by_depth": {}}
+    
+    def traverse_tree(node, depth=0):
+        # Initialize depth stats if needed
+        if depth not in stats["by_depth"]:
+            stats["by_depth"][depth] = {"total": 0, "completed": 0, "learnings": 0}
+        
+        # Update stats
+        stats["total_nodes"] += 1
+        stats["by_depth"][depth]["total"] += 1
+        stats["total_learnings"] += len(node["learnings"])
+        stats["by_depth"][depth]["learnings"] += len(node["learnings"])
+        
+        if node["status"] == "completed":
+            stats["completed"] += 1
+            stats["by_depth"][depth]["completed"] += 1
+        else:
+            stats["in_progress"] += 1
+        
+        # Recurse for child nodes
+        for child in node["sub_queries"]:
+            traverse_tree(child, depth + 1)
+    
+    traverse_tree(tree_data)
+    return stats
 
 # Function to run in a separate thread
-async def run_deep_research(query, mode, api_key, follow_up_answers=None):
+async def run_deep_research(query, mode, api_key, follow_up_answers=None, status_placeholder=None):
+    if status_placeholder:
+        status_placeholder.markdown("""
+        <div style="text-align: center; padding: 20px;">
+            <h3>🔍 Initializing Research...</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: 5%"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
     deep_search = DeepSearch(api_key, mode=mode)
     
     # Determine research breadth and depth
+    if status_placeholder:
+        status_placeholder.markdown("""
+        <div style="text-align: center; padding: 20px;">
+            <h3>📊 Analyzing Query Complexity...</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: 15%"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
     breadth_and_depth = deep_search.determine_research_breadth_and_depth(query)
     breadth = breadth_and_depth["breadth"]
     depth = breadth_and_depth["depth"]
@@ -156,6 +299,17 @@ async def run_deep_research(query, mode, api_key, follow_up_answers=None):
         combined_query = query
     
     # Run the deep research
+    if status_placeholder:
+        status_placeholder.markdown("""
+        <div style="text-align: center; padding: 20px;">
+            <h3>🚀 Running Deep Research...</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: 30%"></div>
+            </div>
+            <p>Researching multiple sources and extracting insights. This may take several minutes...</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     results = await deep_search.deep_research(
         query=combined_query,
         breadth=breadth,
@@ -165,12 +319,33 @@ async def run_deep_research(query, mode, api_key, follow_up_answers=None):
     )
     
     # Generate the final report
+    if status_placeholder:
+        status_placeholder.markdown("""
+        <div style="text-align: center; padding: 20px;">
+            <h3>📝 Generating Final Research Report...</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: 75%"></div>
+            </div>
+            <p>Synthesizing findings into a comprehensive report...</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     final_report = deep_search.generate_final_report(
         query=combined_query,
         learnings=results["learnings"],
         visited_urls=results["visited_urls"],
         sanitized_query=results["sanitized_query"]
     )
+    
+    if status_placeholder:
+        status_placeholder.markdown("""
+        <div style="text-align: center; padding: 20px;">
+            <h3>✅ Research Completed!</h3>
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: 100%"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
     return {
         "breadth": breadth,
@@ -179,7 +354,8 @@ async def run_deep_research(query, mode, api_key, follow_up_answers=None):
         "learnings": results["learnings"],
         "visited_urls": results["visited_urls"],
         "final_report": final_report,
-        "sanitized_query": results["sanitized_query"]
+        "sanitized_query": results["sanitized_query"],
+        "research_tree": results.get("research_tree", {})  # Include the research tree structure
     }
 
 # Main app
@@ -193,11 +369,17 @@ def main():
         st.sidebar.warning("Please enter your Gemini API Key")
     
     # Research mode selection
+    mode_descriptions = {
+        "fast": "Quick overview with basic insights (1-2 min)",
+        "balanced": "Good balance between speed and depth (3-6 min)",
+        "comprehensive": "In-depth research with deeper insights (5-15 min)"
+    }
+    
     mode = st.sidebar.selectbox(
         "Research Mode",
         ["fast", "balanced", "comprehensive"],
         index=1,  # Default to balanced
-        help="Fast: Quick overview, Balanced: Good compromise, Comprehensive: Deep detailed analysis"
+        format_func=lambda x: f"{x.capitalize()}: {mode_descriptions[x]}"
     )
     
     # About section in sidebar
@@ -210,7 +392,7 @@ def main():
         **Modes:**
         - **Fast**: Quick overview with minimal depth
         - **Balanced**: Good compromise between speed and detail
-        - **Comprehensive**: Maximum detail and coverage
+        - **Comprehensive**: Maximum detail and coverage with recursive exploration
         """)
     
     # Main content
@@ -273,26 +455,28 @@ def main():
         if continue_button:
             st.session_state.follow_up_answered = True
             
+            # Create a status placeholder
+            status_placeholder = st.empty()
+            
             # Start the research process
-            with st.spinner("Researching... This may take several minutes depending on the complexity."):
-                try:
-                    # Run the research asynchronously
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    start_time = time.time()
-                    results = loop.run_until_complete(run_deep_research(query, mode, api_key, follow_up_answers))
-                    elapsed_time = time.time() - start_time
-                    
-                    # Store results in session state
-                    st.session_state.research_results = results
-                    st.session_state.research_results['elapsed_time'] = elapsed_time
-                    st.session_state.research_running = False
-                    
-                    # Force a rerun to display results
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error during research: {str(e)}")
-                    st.session_state.research_running = False
+            try:
+                # Run the research asynchronously
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                start_time = time.time()
+                results = loop.run_until_complete(run_deep_research(query, mode, api_key, follow_up_answers, status_placeholder))
+                elapsed_time = time.time() - start_time
+                
+                # Store results in session state
+                st.session_state.research_results = results
+                st.session_state.research_results['elapsed_time'] = elapsed_time
+                st.session_state.research_running = False
+                
+                # Force a rerun to display results
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error during research: {str(e)}")
+                st.session_state.research_running = False
     
     # Display research results if available
     if st.session_state.research_results:
@@ -311,6 +495,58 @@ def main():
             st.metric("Research Time", f"{minutes}m {seconds}s")
         
         st.info(results['explanation'])
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Display research statistics
+        st.markdown('<div class="card"><p class="subheader">Research Statistics</p>', unsafe_allow_html=True)
+        
+        # Try to load the research tree from file
+        tree_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 
+            "results", 
+            f"research_tree_{results['sanitized_query']}.json"
+        )
+        
+        tree_data = None
+        if os.path.exists(tree_path):
+            with open(tree_path, 'r') as f:
+                tree_data = json.load(f)
+        elif 'research_tree' in results:
+            tree_data = results['research_tree']
+            
+        if tree_data:
+            stats = calculate_tree_stats(tree_data)
+            
+            # Display tree statistics
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Queries", stats["total_nodes"])
+            with col2:
+                st.metric("Completed", stats["completed"])
+            with col3:
+                st.metric("Total Learnings", stats["total_learnings"])
+            with col4:
+                st.metric("Sources Found", len(results['visited_urls']))
+                
+            # Display progress bar
+            display_progress_bar(stats["completed"], stats["total_nodes"])
+            
+            # Display statistics by depth
+            if stats["by_depth"]:
+                st.subheader("Queries by Research Depth")
+                depth_data = []
+                for depth, data in sorted(stats["by_depth"].items()):
+                    depth_data.append({
+                        "Depth": depth,
+                        "Queries": data["total"],
+                        "Completed": data["completed"],
+                        "Learnings": data["learnings"],
+                        "Completion %": f"{(data['completed']/data['total']*100) if data['total'] > 0 else 0:.1f}%"
+                    })
+                st.dataframe(pd.DataFrame(depth_data), use_container_width=True)
+        else:
+            st.write("Research statistics not available.")
+            
         st.markdown('</div>', unsafe_allow_html=True)
         
         # Display learnings
@@ -335,21 +571,22 @@ def main():
         # Display research tree
         st.markdown('<div class="card"><p class="subheader">Research Tree</p>', unsafe_allow_html=True)
         
-        # Try to load the research tree from file
-        tree_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 
-            "results", 
-            f"research_tree_{results['sanitized_query']}.json"
-        )
-        
-        if os.path.exists(tree_path):
-            with open(tree_path, 'r') as f:
-                tree_data = json.load(f)
-                display_research_tree(tree_data)
-                
-                # Download button for tree data
+        if tree_data:
+            # Show both visualizations
+            st.subheader("Interactive Visualization")
+            display_research_tree(tree_data)
+            
+            st.subheader("Text-Based Tree View")
+            display_text_tree(tree_data)
+            
+            # Download button for tree data
+            if os.path.exists(tree_path):
                 st.markdown(
-                    get_binary_file_downloader_html(tree_path, 'Download Research Tree (JSON)'),
+                    get_binary_file_downloader_html(
+                        tree_path, 
+                        'Research Tree', 
+                        "📥 Download Research Tree (JSON)"
+                    ),
                     unsafe_allow_html=True
                 )
         else:
@@ -372,9 +609,17 @@ def main():
             
             st.markdown(report_content)
             
+            # Word count
+            word_count = len(report_content.split())
+            st.info(f"Report contains approximately {word_count} words")
+            
             # Download button for report
             st.markdown(
-                get_binary_file_downloader_html(report_path, 'Download Report (Markdown)'),
+                get_binary_file_downloader_html(
+                    report_path, 
+                    'Research Report', 
+                    "📥 Download Report (Markdown)"
+                ),
                 unsafe_allow_html=True
             )
         else:
