@@ -34,7 +34,7 @@ Thumbs.db
 
 # JSON data - consider if you want to track these or not.  If you generate them, ignore them.
 *.json
-
+*.md
 # Packages
 node_modules/
 
