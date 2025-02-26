@@ -4,6 +4,8 @@ import datetime
 import json
 import os
 import uuid
+import time
+import random
 
 import math
 
@@ -161,10 +163,103 @@ class DeepSearch:
         - "comprehensive": Maximum detail and coverage
         """
         self.api_key = api_key
-        self.model_name = "gemini-2.0-flash"
+        # Define models in order of preference
+        self.models = [
+            {"name": "gemini-2.0-flash", "retries": 0, "last_error_time": 0},
+            {"name": "gemini-2.0-pro-exp-02-05", "retries": 0, "last_error_time": 0},  # New fallback model
+            {"name": "gemini-2.0-flash-thinking-exp-01-21", "retries": 0, "last_error_time": 0},  # New fallback model
+            {"name": "gemini-1.5-pro", "retries": 0, "last_error_time": 0},
+            {"name": "gemini-1.5-flash", "retries": 0, "last_error_time": 0}
+        ]
+        self.current_model_index = 0  # Start with the first model
         self.query_history = set()
         self.mode = mode
+        self.max_retries = 3  # Maximum number of retries per model
+        self.cooldown_period = 60  # Cooldown period for a model in seconds after a 429
         genai.configure(api_key=self.api_key)
+
+    def get_current_model(self):
+        """Get the current model to use for API calls"""
+        return self.models[self.current_model_index]["name"]
+
+    def rotate_model(self, error_code=None):
+        """Rotate to the next available model based on error status"""
+        # If we have a specific error, mark it for the current model
+        if error_code:
+            current_model = self.models[self.current_model_index]
+            current_model["retries"] += 1
+            
+            # If it's a rate limit error, mark the timestamp
+            if error_code == 429:
+                current_model["last_error_time"] = time.time()
+                print(f"Model {current_model['name']} hit rate limit. Cooling down.")
+        
+        # Try to find the next available model
+        original_index = self.current_model_index
+        while True:
+            # Move to next model
+            self.current_model_index = (self.current_model_index + 1) % len(self.models)
+            
+            # If we've checked all models and came back to the original, just use it
+            if self.current_model_index == original_index:
+                # Reset retry count if we've gone through all models
+                for model in self.models:
+                    if model["retries"] > 0:
+                        model["retries"] -= 1
+                break
+            
+            # Check if this model is available
+            current_model = self.models[self.current_model_index]
+            
+            # Skip if model has exceeded max retries
+            if current_model["retries"] >= self.max_retries:
+                continue
+                
+            # Skip if model is in cooldown period after rate limiting
+            if error_code == 429 and current_model["last_error_time"] > 0:
+                elapsed = time.time() - current_model["last_error_time"]
+                if elapsed < self.cooldown_period:
+                    continue
+                    
+            # Found an available model
+            break
+            
+        current_model = self.models[self.current_model_index]
+        print(f"Switched to model: {current_model['name']}")
+        return current_model["name"]
+    
+    def execute_with_retry(self, func, *args, **kwargs):
+        """Execute a function with retry logic and model rotation"""
+        max_total_retries = self.max_retries * len(self.models)
+        retry_count = 0
+        
+        while retry_count < max_total_retries:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                error_message = str(e).lower()
+                retry_count += 1
+                
+                # Handle specific error types
+                error_code = None
+                if "429" in error_message or "too many requests" in error_message:
+                    error_code = 429
+                    print(f"Rate limit error encountered ({retry_count}/{max_total_retries})")
+                elif "500" in error_message or "503" in error_message:
+                    error_code = 500
+                    print(f"Server error encountered ({retry_count}/{max_total_retries})")
+                else:
+                    print(f"Error encountered: {e} ({retry_count}/{max_total_retries})")
+                
+                # Try a different model
+                self.rotate_model(error_code)
+                
+                # Add exponential backoff with jitter
+                backoff_time = min(2 ** retry_count, 60) * (0.5 + random.random())
+                print(f"Retrying in {backoff_time:.2f} seconds...")
+                time.sleep(backoff_time)
+        
+        raise Exception(f"Failed after {max_total_retries} attempts with all models")
 
     def determine_research_breadth_and_depth(self, query: str):
         user_prompt = f"""
@@ -210,20 +305,17 @@ class DeepSearch:
             ),
         }
 
-        model = genai.GenerativeModel(
-            "gemini-2.0-flash",
-            generation_config=generation_config,
-        )
+        def make_api_call():
+            model = genai.GenerativeModel(
+                self.get_current_model(),
+                generation_config=generation_config,
+            )
+            response = model.generate_content(user_prompt)
+            return json.loads(response.text)
 
-        response = model.generate_content(user_prompt)
-        answer = response.text
+        return self.execute_with_retry(make_api_call)
 
-        return json.loads(answer)
-
-    def generate_follow_up_questions(
-        query: str,
-        max_questions: int = 3,
-    ):
+    def generate_follow_up_questions(self, query: str, max_questions: int = 3):
         user_prompt = f"""
 		Given the following query from the user, ask some follow up questions to clarify the research direction.
 
@@ -251,15 +343,15 @@ class DeepSearch:
             ),
         }
 
-        model = genai.GenerativeModel(
-            "gemini-2.0-flash",
-            generation_config=generation_config,
-        )
+        def make_api_call():
+            model = genai.GenerativeModel(
+                self.get_current_model(),
+                generation_config=generation_config,
+            )
+            response = model.generate_content(user_prompt)
+            return json.loads(response.text)["follow_up_queries"]
 
-        response = model.generate_content(user_prompt)
-        answer = response.text
-
-        return json.loads(answer)["follow_up_queries"]
+        return self.execute_with_retry(make_api_call)
 
     def generate_queries(
             self,
@@ -311,21 +403,15 @@ class DeepSearch:
             "response_mime_type": "application/json",
         }
 
-        model = genai.GenerativeModel(
-            "gemini-2.0-flash",
-            generation_config=generation_config,
-        )
+        def make_api_call():
+            model = genai.GenerativeModel(
+                self.get_current_model(),
+                generation_config=generation_config,
+            )
+            response = model.generate_content(user_prompt + learnings_prompt)
+            return json.loads(response.text)["queries"]
 
-        # generate a list of queries
-        response = model.generate_content(
-            user_prompt + learnings_prompt
-        )
-
-        answer = response.text
-
-        answer_list = json.loads(answer)["queries"]
-
-        return answer_list
+        return self.execute_with_retry(make_api_call)
 
     def format_text_with_sources(self, response_dict: dict, answer: str):
         """
@@ -393,38 +479,38 @@ class DeepSearch:
             return answer, {}
 
     def search(self, query: str):
-        client = genai_client.Client(
-            api_key=os.environ.get("GEMINI_KEY")
-        )
+        def make_api_call():
+            client = genai_client.Client(api_key=self.api_key)
 
-        model_id = "gemini-2.0-flash"
+            google_search_tool = types.Tool(
+                google_search=types.GoogleSearch()
+            )
 
-        google_search_tool = types.Tool(
-            google_search=types.GoogleSearch()
-        )
+            generation_config = {
+                "temperature": 1,
+                "top_p": 0.95,
+                "top_k": 40,
+                "max_output_tokens": 8192,
+                "response_mime_type": "text/plain",
+                "response_modalities": ["TEXT"],
+                "tools": [google_search_tool]
+            }
 
-        generation_config = {
-            "temperature": 1,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-            "response_mime_type": "text/plain",
-            "response_modalities": ["TEXT"],
-            "tools": [google_search_tool]
-        }
+            model_id = self.get_current_model()
+            
+            response = client.models.generate_content(
+                model=model_id,
+                contents=query,
+                config=generation_config
+            )
 
-        response = client.models.generate_content(
-            model=model_id,
-            contents=query,
-            config=generation_config
-        )
+            response_dict = response.model_dump()
+            formatted_text, sources = self.format_text_with_sources(
+                response_dict, response.text)
+            
+            return formatted_text, sources
 
-        response_dict = response.model_dump()
-
-        formatted_text, sources = self.format_text_with_sources(
-            response_dict, response.text)
-
-        return formatted_text, sources
+        return self.execute_with_retry(make_api_call)
 
     async def process_result(
         self,
@@ -466,15 +552,15 @@ class DeepSearch:
             ),
         }
 
-        model = genai.GenerativeModel(
-            "gemini-2.0-flash",
-            generation_config=generation_config,
-        )
+        def make_api_call():
+            model = genai.GenerativeModel(
+                self.get_current_model(),
+                generation_config=generation_config,
+            )
+            response = model.generate_content(user_prompt + "\n" + result)
+            return json.loads(response.text)
 
-        response = model.generate_content(user_prompt)
-        answer = response.text
-
-        answer_json = json.loads(answer)
+        answer_json = self.execute_with_retry(make_api_call)
 
         learnings = answer_json["learnings"]
         follow_up_questions = answer_json["follow_up_questions"]
@@ -522,14 +608,15 @@ class DeepSearch:
         }
 
         try:
-            model = genai.GenerativeModel(
-                "gemini-2.0-flash",
-                generation_config=generation_config,
-            )
-
-            response = model.generate_content(user_prompt)
-            answer = json.loads(response.text)
-            return answer["are_similar"]
+            def make_api_call():
+                model = genai.GenerativeModel(
+                    self.get_current_model(),
+                    generation_config=generation_config,
+                )
+                response = model.generate_content(user_prompt)
+                return json.loads(response.text)["are_similar"]
+                
+            return self.execute_with_retry(make_api_call)
         except Exception as e:
             print(f"Error comparing queries: {str(e)}")
             # In case of error, assume queries are different to avoid missing potentially unique results
@@ -710,21 +797,24 @@ class DeepSearch:
             "max_output_tokens": 8192,
         }
 
-        model = genai.GenerativeModel(
-            "gemini-2.0-flash",
-            generation_config=generation_config,
-        )
-
         print("Generating final report...\n")
 
-        response = model.generate_content(user_prompt)
-
-        # Format the response with inline citations
-        formatted_text, sources = self.format_text_with_sources(
-            response.to_dict(),
-            response.text
-        )
-
+        def make_api_call():
+            model = genai.GenerativeModel(
+                self.get_current_model(),
+                generation_config=generation_config,
+            )
+            response = model.generate_content(user_prompt)
+            
+            # Format the response with inline citations
+            formatted_text, sources = self.format_text_with_sources(
+                response.to_dict(),
+                response.text
+            )
+            return formatted_text
+            
+        formatted_text = self.execute_with_retry(make_api_call)
+        
         # Add sources section
         sources_section = "\n# Sources\n" + "\n".join([
             f"- [{data['title']}]({data['link']})"
