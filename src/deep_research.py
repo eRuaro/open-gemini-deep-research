@@ -1,4 +1,4 @@
-from typing import Callable, List, TypeVar, Any
+from typing import Callable, List, TypeVar, Any, Dict
 import asyncio
 import datetime
 import json
@@ -7,17 +7,12 @@ import uuid
 import time
 import random
 import re
-
 import math
 
 from dotenv import load_dotenv
-from google.genai import types
 
-import google.generativeai as genai
-
-from google import genai as genai_client
-
-from google.ai.generativelanguage_v1beta.types import content
+# Import our new GeminiClient
+from .gemini_client import GeminiClient
 
 
 class ResearchProgress:
@@ -102,18 +97,49 @@ class ResearchProgress:
                 self.complete_query(parent_query, parent_depth)
 
     def _report_progress(self, action: str):
-        """Report current progress"""
-        print(f"\nResearch Progress Update:")
+        """Report current progress with improved visualization"""
+        print(f"\n{'-'*80}")
+        print(f"\033[1mRESEARCH PROGRESS UPDATE\033[0m")
         print(f"Action: {action}")
+        
+        # Calculate and display a progress bar
+        progress_percent = (self.completed_queries / self.total_queries) * 100 if self.total_queries > 0 else 0
+        bar_length = 40
+        filled_length = int(bar_length * self.completed_queries // self.total_queries) if self.total_queries > 0 else 0
+        bar = '█' * filled_length + '░' * (bar_length - filled_length)
+        
+        print(f"\nProgress: [{bar}] {progress_percent:.1f}% ({self.completed_queries}/{self.total_queries} queries)")
 
-        # Build and print the tree starting from the root query
+        # Build tree but only display a simplified version for better readability
         if self.root_query:
             tree = self._build_research_tree()
-            print("\nQuery Tree Structure:")
-            print(json.dumps(tree, indent=2))
-
-        print(f"\nOverall Progress: {self.completed_queries}/{self.total_queries} queries completed")
-        print("")
+            print("\nResearch Tree Structure:")
+            self._print_tree_pretty(tree)
+            
+        print(f"{'-'*80}\n")
+        
+    def _print_tree_pretty(self, node, indent="", is_last=True, is_root=True):
+        """Print a more readable tree structure"""
+        # Display information about the current node
+        if is_root:
+            print(f"{indent}📊 Root: \033[1m{node['query'][:50]}{'...' if len(node['query']) > 50 else ''}\033[0m [{node['status']}]")
+        else:
+            branch = "└── " if is_last else "├── "
+            status_icon = "✅" if node['status'] == 'completed' else "🔄"
+            print(f"{indent}{branch}{status_icon} \033[1m{node['query'][:50]}{'...' if len(node['query']) > 50 else ''}\033[0m")
+            
+            # Display number of learnings
+            if node['learnings']:
+                print(f"{indent}{'    ' if is_last else '│   '}📝 {len(node['learnings'])} learnings")
+        
+        # Calculate indent for children
+        if not is_root:
+            indent += "    " if is_last else "│   "
+        
+        # Recursively print child nodes
+        for i, child in enumerate(node['sub_queries']):
+            is_last_child = i == len(node['sub_queries']) - 1
+            self._print_tree_pretty(child, indent, is_last_child, False)
 
     def _build_research_tree(self):
         """Build the full research tree structure"""
@@ -164,107 +190,15 @@ class DeepSearch:
         - "comprehensive": Maximum detail and coverage
         """
         self.api_key = api_key
-        # Define models in order of preference
-        self.models = [
-            {"name": "gemini-2.0-flash", "retries": 0, "last_error_time": 0},
-            {"name": "gemini-2.0-pro-exp-02-05", "retries": 0, "last_error_time": 0},  # New fallback model
-            {"name": "gemini-2.0-flash-thinking-exp-01-21", "retries": 0, "last_error_time": 0},  # New fallback model
-            {"name": "gemini-1.5-pro", "retries": 0, "last_error_time": 0},
-            {"name": "gemini-1.5-flash", "retries": 0, "last_error_time": 0}
-        ]
-        self.current_model_index = 0  # Start with the first model
-        self.query_history = set()
         self.mode = mode
-        self.max_retries = 3  # Maximum number of retries per model
-        self.cooldown_period = 60  # Cooldown period for a model in seconds after a 429
-        genai.configure(api_key=self.api_key)
+        self.query_history = set()
+        
+        # Initialize our Gemini client
+        self.client = GeminiClient(api_key)
         
         # Ensure results directory exists
         self.results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
         os.makedirs(self.results_dir, exist_ok=True)
-
-    def get_current_model(self):
-        """Get the current model to use for API calls"""
-        return self.models[self.current_model_index]["name"]
-
-    def rotate_model(self, error_code=None):
-        """Rotate to the next available model based on error status"""
-        # If we have a specific error, mark it for the current model
-        if error_code:
-            current_model = self.models[self.current_model_index]
-            current_model["retries"] += 1
-            
-            # If it's a rate limit error, mark the timestamp
-            if error_code == 429:
-                current_model["last_error_time"] = time.time()
-                print(f"Model {current_model['name']} hit rate limit. Cooling down.")
-        
-        # Try to find the next available model
-        original_index = self.current_model_index
-        while True:
-            # Move to next model
-            self.current_model_index = (self.current_model_index + 1) % len(self.models)
-            
-            # If we've checked all models and came back to the original, just use it
-            if self.current_model_index == original_index:
-                # Reset retry count if we've gone through all models
-                for model in self.models:
-                    if model["retries"] > 0:
-                        model["retries"] -= 1
-                break
-            
-            # Check if this model is available
-            current_model = self.models[self.current_model_index]
-            
-            # Skip if model has exceeded max retries
-            if current_model["retries"] >= self.max_retries:
-                continue
-                
-            # Skip if model is in cooldown period after rate limiting
-            if error_code == 429 and current_model["last_error_time"] > 0:
-                elapsed = time.time() - current_model["last_error_time"]
-                if elapsed < self.cooldown_period:
-                    continue
-                    
-            # Found an available model
-            break
-            
-        current_model = self.models[self.current_model_index]
-        print(f"Switched to model: {current_model['name']}")
-        return current_model["name"]
-    
-    def execute_with_retry(self, func, *args, **kwargs):
-        """Execute a function with retry logic and model rotation"""
-        max_total_retries = self.max_retries * len(self.models)
-        retry_count = 0
-        
-        while retry_count < max_total_retries:
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                error_message = str(e).lower()
-                retry_count += 1
-                
-                # Handle specific error types
-                error_code = None
-                if "429" in error_message or "too many requests" in error_message:
-                    error_code = 429
-                    print(f"Rate limit error encountered ({retry_count}/{max_total_retries})")
-                elif "500" in error_message or "503" in error_message:
-                    error_code = 500
-                    print(f"Server error encountered ({retry_count}/{max_total_retries})")
-                else:
-                    print(f"Error encountered: {e} ({retry_count}/{max_total_retries})")
-                
-                # Try a different model
-                self.rotate_model(error_code)
-                
-                # Add exponential backoff with jitter
-                backoff_time = min(2 ** retry_count, 60) * (0.5 + random.random())
-                print(f"Retrying in {backoff_time:.2f} seconds...")
-                time.sleep(backoff_time)
-        
-        raise Exception(f"Failed after {max_total_retries} attempts with all models")
 
     def determine_research_breadth_and_depth(self, query: str):
         user_prompt = f"""
@@ -292,33 +226,17 @@ class DeepSearch:
 		<query>{query}</query>
 		"""
 
-        generation_config = {
-            "temperature": 1,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-            "response_mime_type": "application/json",
-            "response_schema": content.Schema(
-                type=content.Type.OBJECT,
-                enum=[],
-                required=["breadth", "depth", "explanation"],
-                properties={
-                    "breadth": content.Schema(type=content.Type.NUMBER),
-                    "depth": content.Schema(type=content.Type.NUMBER),
-                    "explanation": content.Schema(type=content.Type.STRING),
-                },
-            ),
+        schema = {
+            "type": "OBJECT",
+            "required": ["breadth", "depth", "explanation"],
+            "properties": {
+                "breadth": {"type": "NUMBER"},
+                "depth": {"type": "NUMBER"},
+                "explanation": {"type": "STRING"},
+            },
         }
 
-        def make_api_call():
-            model = genai.GenerativeModel(
-                self.get_current_model(),
-                generation_config=generation_config,
-            )
-            response = model.generate_content(user_prompt)
-            return json.loads(response.text)
-
-        return self.execute_with_retry(make_api_call)
+        return self.client.generate_json_content(user_prompt, schema)
 
     def generate_follow_up_questions(self, query: str, max_questions: int = 3):
         user_prompt = f"""
@@ -327,43 +245,28 @@ class DeepSearch:
 		Return a maximum of {max_questions} questions, but feel free to return less if the original query is clear: <query>{query}</query>
 		"""
 
-        generation_config = {
-            "temperature": 1,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-            "response_mime_type": "application/json",
-            "response_schema": content.Schema(
-                type=content.Type.OBJECT,
-                enum=[],
-                required=["follow_up_queries"],
-                properties={
-                    "follow_up_queries": content.Schema(
-                        type=content.Type.ARRAY,
-                        items=content.Schema(
-                            type=content.Type.STRING,
-                        ),
-                    ),
+        schema = {
+            "type": "OBJECT",
+            "required": ["follow_up_queries"],
+            "properties": {
+                "follow_up_queries": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "STRING",
+                    },
                 },
-            ),
+            },
         }
 
-        def make_api_call():
-            model = genai.GenerativeModel(
-                self.get_current_model(),
-                generation_config=generation_config,
-            )
-            response = model.generate_content(user_prompt)
-            return json.loads(response.text)["follow_up_queries"]
-
-        return self.execute_with_retry(make_api_call)
+        result = self.client.generate_json_content(user_prompt, schema)
+        return result["follow_up_queries"]
 
     def generate_queries(
             self,
             query: str,
             num_queries: int = 3,
             learnings: list[str] = [],
-            previous_queries: set[str] = None  # Add previous_queries parameter
+            previous_queries: set[str] = None
     ):
         now = datetime.datetime.now().strftime("%Y-%m-%d")
 
@@ -387,135 +290,24 @@ class DeepSearch:
         learnings_prompt = "" if not learnings else "Here are some learnings from previous research, use them to generate more specific queries: " + \
             "\n".join(learnings)
 
-        generation_config = {
-            "temperature": 1,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-            "response_schema": content.Schema(
-                type=content.Type.OBJECT,
-                enum=[],
-                required=["queries"],
-                properties={
-                    "queries": content.Schema(
-                        type=content.Type.ARRAY,
-                        items=content.Schema(
-                            type=content.Type.STRING,
-                        ),
-                    ),
+        schema = {
+            "type": "OBJECT",
+            "required": ["queries"],
+            "properties": {
+                "queries": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "STRING",
+                    },
                 },
-            ),
-            "response_mime_type": "application/json",
+            },
         }
 
-        def make_api_call():
-            model = genai.GenerativeModel(
-                self.get_current_model(),
-                generation_config=generation_config,
-            )
-            response = model.generate_content(user_prompt + learnings_prompt)
-            return json.loads(response.text)["queries"]
-
-        return self.execute_with_retry(make_api_call)
-
-    def format_text_with_sources(self, response_dict: dict, answer: str):
-        """
-        Format text with sources from Gemini response, adding citations at specified positions.
-        Returns tuple of (formatted_text, sources_dict).
-        """
-        if not response_dict or not response_dict.get('candidates'):
-            return answer, {}
-
-        # Get grounding metadata from the response
-        grounding_metadata = response_dict['candidates'][0].get(
-            'grounding_metadata')
-        if not grounding_metadata:
-            return answer, {}
-
-        # Get grounding chunks and supports
-        grounding_chunks = grounding_metadata.get('grounding_chunks', [])
-        grounding_supports = grounding_metadata.get('grounding_supports', [])
-
-        if not grounding_chunks or not grounding_supports:
-            return answer, {}
-
-        try:
-            # Create mapping of URLs
-            sources = {
-                i: {
-                    'link': chunk.get('web', {}).get('uri', ''),
-                    'title': chunk.get('web', {}).get('title', '')
-                }
-                for i, chunk in enumerate(grounding_chunks)
-                if chunk.get('web')
-            }
-
-            # Create a list of (position, citation) tuples
-            citations = []
-            for support in grounding_supports:
-                segment = support.get('segment', {})
-                indices = support.get('grounding_chunk_indices', [])
-
-                if indices and segment and segment.get('end_index') is not None:
-                    end_index = segment['end_index']
-                    source_idx = indices[0]
-                    if source_idx in sources:
-                        citation = f"[[{source_idx + 1}]]({sources[source_idx]['link']})"
-                        citations.append((end_index, citation))
-
-            # Sort citations by position (end_index)
-            citations.sort(key=lambda x: x[0])
-
-            # Insert citations into the text
-            result = ""
-            last_pos = 0
-            for pos, citation in citations:
-                result += answer[last_pos:pos]
-                result += citation
-                last_pos = pos
-
-            # Add any remaining text
-            result += answer[last_pos:]
-
-            return result, sources
-
-        except Exception as e:
-            print(f"Error processing grounding metadata: {e}")
-            return answer, {}
+        result = self.client.generate_json_content(user_prompt + learnings_prompt, schema)
+        return result["queries"]
 
     def search(self, query: str):
-        def make_api_call():
-            client = genai_client.Client(api_key=self.api_key)
-
-            google_search_tool = types.Tool(
-                google_search=types.GoogleSearch()
-            )
-
-            generation_config = {
-                "temperature": 1,
-                "top_p": 0.95,
-                "top_k": 40,
-                "max_output_tokens": 8192,
-                "response_mime_type": "text/plain",
-                "response_modalities": ["TEXT"],
-                "tools": [google_search_tool]
-            }
-
-            model_id = self.get_current_model()
-            
-            response = client.models.generate_content(
-                model=model_id,
-                contents=query,
-                config=generation_config
-            )
-
-            response_dict = response.model_dump()
-            formatted_text, sources = self.format_text_with_sources(
-                response_dict, response.text)
-            
-            return formatted_text, sources
-
-        return self.execute_with_retry(make_api_call)
+        return self.client.search(query)
 
     async def process_result(
         self,
@@ -530,42 +322,26 @@ class DeepSearch:
 		Given the following result from a SERP search for the query <query>{query}</query>, generate a list of learnings from the result. Return a maximum of {num_learnings} learnings, but feel free to return less if the result is clear. Make sure each learning is unique and not similar to each other. The learnings should be concise and to the point, as detailed and information dense as possible. Make sure to include any entities like people, places, companies, products, things, etc in the learnings, as well as any exact metrics, numbers, or dates. The learnings will be used to research the topic further.
 		"""
 
-        generation_config = {
-            "temperature": 1,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-            "response_mime_type": "application/json",
-            "response_schema": content.Schema(
-                type=content.Type.OBJECT,
-                enum=[],
-                required=["learnings", "follow_up_questions"],
-                properties={
-                    "learnings": content.Schema(
-                        type=content.Type.ARRAY,
-                        items=content.Schema(
-                            type=content.Type.STRING
-                        )
-                    ),
-                    "follow_up_questions": content.Schema(
-                        type=content.Type.ARRAY,
-                        items=content.Schema(
-                            type=content.Type.STRING
-                        )
-                    )
+        schema = {
+            "type": "OBJECT",
+            "required": ["learnings", "follow_up_questions"],
+            "properties": {
+                "learnings": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "STRING"
+                    }
                 },
-            ),
+                "follow_up_questions": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "STRING"
+                    }
+                }
+            },
         }
 
-        def make_api_call():
-            model = genai.GenerativeModel(
-                self.get_current_model(),
-                generation_config=generation_config,
-            )
-            response = model.generate_content(user_prompt + "\n" + result)
-            return json.loads(response.text)
-
-        answer_json = self.execute_with_retry(make_api_call)
+        answer_json = self.client.generate_json_content(user_prompt + "\n" + result, schema)
 
         learnings = answer_json["learnings"]
         follow_up_questions = answer_json["follow_up_questions"]
@@ -594,34 +370,20 @@ class DeepSearch:
         Only respond with true if the queries are notably similar, false otherwise.
         """
 
-        generation_config = {
-            "temperature": 0.1,  # Low temperature for more consistent results
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-            "response_mime_type": "application/json",
-            "response_schema": content.Schema(
-                type=content.Type.OBJECT,
-                required=["are_similar"],
-                properties={
-                    "are_similar": content.Schema(
-                        type=content.Type.BOOLEAN,
-                        description="True if queries are semantically similar, false otherwise"
-                    )
+        schema = {
+            "type": "OBJECT",
+            "required": ["are_similar"],
+            "properties": {
+                "are_similar": {
+                    "type": "BOOLEAN",
+                    "description": "True if queries are semantically similar, false otherwise"
                 }
-            )
+            }
         }
 
         try:
-            def make_api_call():
-                model = genai.GenerativeModel(
-                    self.get_current_model(),
-                    generation_config=generation_config,
-                )
-                response = model.generate_content(user_prompt)
-                return json.loads(response.text)["are_similar"]
-                
-            return self.execute_with_retry(make_api_call)
+            result = self.client.generate_json_content(user_prompt, schema)
+            return result["are_similar"]
         except Exception as e:
             print(f"Error comparing queries: {str(e)}")
             # In case of error, assume queries are different to avoid missing potentially unique results
@@ -629,18 +391,33 @@ class DeepSearch:
 
     def _sanitize_filename(self, query: str) -> str:
         """Convert a query to a valid filename by removing invalid characters and truncating if needed"""
+        # Replace newlines with spaces first
+        sanitized = query.replace('\n', ' ').replace('\r', ' ')
+        
         # Replace invalid filename characters with underscores
-        sanitized = re.sub(r'[\\/*?:"<>|]', "_", query)
+        sanitized = re.sub(r'[\\/*?:"<>|]', "_", sanitized)
+        
         # Replace spaces with underscores for better filenames
         sanitized = sanitized.replace(" ", "_")
+        
+        # Remove consecutive underscores
+        sanitized = re.sub(r'_+', '_', sanitized)
+        
         # Truncate if too long (max 100 chars for filename)
         if len(sanitized) > 100:
             sanitized = sanitized[:97] + "..."
+            
         # Add timestamp to ensure uniqueness
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"{sanitized}_{timestamp}"
 
     async def deep_research(self, query: str, breadth: int, depth: int, learnings: list[str] = [], visited_urls: dict[int, dict] = {}, parent_query: str = None):
+        print(f"\n{'='*80}")
+        print(f"\033[1m🔍 STARTING DEEP RESEARCH\033[0m")
+        print(f"Mode: {self.mode.capitalize()}")
+        print(f"Breadth: {breadth}, Depth: {depth}")
+        print(f"{'='*80}\n")
+        
         progress = ResearchProgress(depth, breadth)
         
         # Start the root query
@@ -653,22 +430,32 @@ class DeepSearch:
             "comprehensive": 5 # kept lower than balanced due to recursive multiplication
         }[self.mode]
 
+        print(f"Generating research queries...", end="", flush=True)
         queries = self.generate_queries(
             query,
             min(breadth, max_queries),
             learnings,
             previous_queries=self.query_history
         )
+        print(f" Done! Generated {len(queries)} queries.")
 
         self.query_history.update(queries)
         unique_queries = list(queries)[:breadth]
+
+        print(f"\n📋 Primary research queries:")
+        for i, q in enumerate(unique_queries):
+            print(f"  {i+1}. {q}")
+        print()
 
         async def process_query(query_str: str, current_depth: int, parent: str = None):
             try:
                 # Start this query as a sub-query of the parent
                 progress.start_query(query_str, current_depth, parent)
 
+                print(f"🔎 Searching for: \033[1m{query_str[:50]}{'...' if len(query_str) > 50 else ''}\033[0m")
                 result = self.search(query_str)
+                print(f"✓ Found {len(result[1])} sources")
+                
                 processed_result = await self.process_result(
                     query=query_str,
                     result=result[0],
@@ -698,6 +485,8 @@ class DeepSearch:
                         # Take only the most relevant question
                         next_query = processed_result['follow_up_questions'][0]
                         
+                        print(f"\n📥 Going deeper with follow-up question: \033[1m{next_query[:50]}{'...' if len(next_query) > 50 else ''}\033[0m\n")
+                        
                         # Process the sub-query
                         sub_results = await process_query(
                             next_query,
@@ -712,13 +501,15 @@ class DeepSearch:
                 }
 
             except Exception as e:
-                print(f"Error processing query {query_str}: {str(e)}")
+                print(f"\n❌ Error processing query \033[1m{query_str[:50]}{'...' if len(query_str) > 50 else ''}\033[0m: {str(e)}")
                 progress.complete_query(query_str, current_depth)
                 return {
                     "learnings": [],
                     "visited_urls": {}
                 }
 
+        print(f"\n🚀 Starting parallel research on {len(unique_queries)} queries...\n")
+        
         # Process queries concurrently
         tasks = [process_query(q, depth, query) for q in unique_queries]
         results = await asyncio.gather(*tasks)
@@ -751,15 +542,27 @@ class DeepSearch:
         with open(tree_filename, "w") as f:
             json.dump(progress._build_research_tree(), f)
         
-        print(f"\nResearch tree saved to: {tree_filename}")
+        # Display a summary of research results
+        print(f"\n{'='*80}")
+        print(f"\033[1m📊 RESEARCH SUMMARY\033[0m")
+        print(f"Total queries processed: {progress.total_queries}")
+        print(f"Total learnings gathered: {len(all_learnings)}")
+        print(f"Total unique sources found: {len(all_urls)}")
+        print(f"\n📂 Research tree saved to: {tree_filename}")
+        print(f"{'='*80}\n")
 
         return {
             "learnings": all_learnings,
             "visited_urls": all_urls,
-            "sanitized_query": sanitized_query  # Return this for use in generate_final_report
+            "sanitized_query": sanitized_query,  # Return this for use in generate_final_report
+            "research_tree": progress._build_research_tree()  # Return the full tree for display
         }
 
     def generate_final_report(self, query: str, learnings: list[str], visited_urls: dict[int, dict], sanitized_query: str = None) -> str:
+        print(f"\n{'='*80}")
+        print(f"\033[1m📝 GENERATING FINAL RESEARCH REPORT\033[0m")
+        print(f"{'='*80}\n")
+        
         # If no sanitized_query provided, create one
         if sanitized_query is None:
             sanitized_query = self._sanitize_filename(query)
@@ -771,6 +574,8 @@ class DeepSearch:
         ])
         learnings_text = "\n".join([f"- {learning}" for learning in learnings])
 
+        print(f"📊 Synthesizing {len(learnings)} key learnings from {len(visited_urls)} sources...")
+        
         user_prompt = f"""
         You are a creative research analyst tasked with synthesizing findings into an engaging and informative report.
         Create a comprehensive research report (minimum 3000 words) based on the following query and findings.
@@ -826,23 +631,18 @@ class DeepSearch:
             "max_output_tokens": 8192,
         }
 
-        print("Generating final report...\n")
+        print("🧠 Generating report content... (this might take a few minutes)")
+        print("⏳ AI is working on synthesizing information and drafting the report...")
 
-        def make_api_call():
-            model = genai.GenerativeModel(
-                self.get_current_model(),
-                generation_config=generation_config,
-            )
-            response = model.generate_content(user_prompt)
-            
-            # Format the response with inline citations
-            formatted_text, sources = self.format_text_with_sources(
-                response.to_dict(),
-                response.text
-            )
-            return formatted_text
-            
-        formatted_text = self.execute_with_retry(make_api_call)
+        response = self.client.generate_content(user_prompt, generation_config)
+        print("✓ Initial report content generated!")
+        
+        print("📋 Formatting report with citations...")
+        # Format the response with inline citations
+        formatted_text, sources = self.client.format_text_with_sources(
+            response.to_dict(),
+            response.text
+        )
         
         # Add sources section
         sources_section = "\n# Sources\n" + "\n".join([
@@ -857,9 +657,15 @@ class DeepSearch:
         with open(report_filename, "w", encoding="utf-8") as f:
             f.write(report_content)
             
-        print(f"\nFinal report saved to: {report_filename}")
+        print(f"\n✅ Final report successfully generated!")
+        print(f"📂 Report saved to: {report_filename}")
+        print(f"\n{'='*80}\n")
+
+        # Count approximate words for the user
+        word_count = len(report_content.split())
+        print(f"📊 Report statistics:")
+        print(f"  - Word count: approximately {word_count} words")
+        print(f"  - Sources cited: {len(visited_urls)} unique sources")
+        print(f"  - Insights incorporated: {len(learnings)} key learnings\n")
 
         return report_content
-
-
-
