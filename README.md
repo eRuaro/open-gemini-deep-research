@@ -1,215 +1,162 @@
 # Open Gemini Deep Research
 
-A powerful open-source research assistant powered by Google's Gemini AI that performs deep, multi-layered research on any topic.
+A powerful AI research assistant powered by Google's Gemini AI models that performs deep, multi-layered research on any topic with customizable depth and breadth.
 
-## Features
+## Overview
 
-- Automated deep research with adjustable breadth and depth
-- Follow-up question generation for better context
-- Concurrent processing of multiple research queries
-- Comprehensive final report generation with citations
-- Three research modes: fast, balanced, and comprehensive
-- Progress tracking and detailed logging
-- Source tracking and citation management
+Open Gemini Deep Research is an advanced research tool that leverages Google's Gemini AI to conduct comprehensive research on any topic. The system uses a structured research methodology, following up with clarifying questions, generating multiple research queries, and synthesizing findings into a detailed report.
 
-## Prerequisites
+## Key Features
+
+- **Multi-layered Research**: Automatically explores topics with adjustable breadth and depth parameters
+- **Smart Query Generation**: Creates focused, non-overlapping research queries based on your topic
+- **Follow-up Questions**: Refines research focus through intelligent clarifying questions
+- **Research Tree Structure**: Visualizes the research process with a tree-based approach
+- **Comprehensive Reporting**: Generates detailed reports with citations and source tracking
+- **Multiple Research Modes**:
+  - **Fast**: Quick overview for time-sensitive needs (1-2 minutes)
+  - **Balanced**: Optimal depth-speed tradeoff (3-6 minutes)
+  - **Comprehensive**: In-depth analysis with recursive exploration (5-15 minutes)
+- **Progress Tracking**: Monitors research status with detailed visualization
+- **Web & CLI Interfaces**: Use as a command-line tool or interactive web application
+
+## Use Cases
+
+- Academic research and literature reviews
+- Market research and competitive analysis
+- Technology trend exploration
+- Policy and regulatory analysis
+- Topic discovery and exploration
+- Educational content creation
+- Background research for writing
+
+## Getting Started
+
+### Prerequisites
 
 - Python 3.9+
 - Google Gemini API key
-- Docker (if using dev container)
-- VS Code with Dev Containers extension (if using dev container)
+- Docker (for containerized deployment)
 
-## Installation
+### Installation
 
-You can set up this project in one of two ways:
+#### Option 1: Direct Installation
 
-### Option 1: Using Dev Container (Recommended)
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/open-gemini-deep-research.git
+cd open-gemini-deep-research
 
-1. Open the project in VS Code
-2. When prompted, click "Reopen in Container" or run the "Dev Containers: Reopen in Container" command
-3. Create a `.env` file in the root directory and add your Gemini API key:
-   ```
-   GEMINI_KEY=your_api_key_here
-   ```
+# Create and activate virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-### Option 2: Local Installation
+# Install dependencies
+pip install -r requirements.txt
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd open-gemini-deep-research
-   ```
+# Set up your Gemini API key
+# Create a .env file with your API key
+echo "GEMINI_KEY=your_api_key_here" > .env
+```
 
-2. Create and activate a virtual environment (recommended):
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+#### Option 2: Using Docker
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Create a `.env` file in the root directory and add your Gemini API key:
-   ```
-   GEMINI_KEY=your_api_key_here
-   ```
+```bash
+# Build and run with Docker
+docker build -t open-gemini-deep-research .
+docker run -it -e GEMINI_KEY=your_api_key_here open-gemini-deep-research
+```
 
 ## Usage
 
-Run the main script with your research query:
+### Command Line Interface
+
+Run research directly from the command line:
+
 ```bash
-python main.py "your research query here"
-```
+# Basic usage
+python main.py "Your research topic or question"
 
-### Optional Arguments
-
-- `--mode`: Research mode (choices: fast, balanced, comprehensive) [default: balanced]
-- `--num-queries`: Number of queries to generate [default: 3]
-- `--learnings`: List of previous learnings [optional]
-
-Example:
-```bash
+# With options
 python main.py "Impact of artificial intelligence on healthcare" --mode comprehensive --num-queries 5
 ```
 
+#### CLI Options:
+- `--mode`: Research mode (`fast`, `balanced`, `comprehensive`) [default: balanced]
+- `--num-queries`: Number of initial queries to generate [default: 3]
+- `--learnings`: List of previous learnings to incorporate [optional]
 
-## Output
+### Web Interface
 
-The script will:
-1. Analyze your query for optimal research parameters
-2. Ask follow-up questions for clarification
-3. Conduct multi-layered research
-4. Generate a comprehensive report saved as `final_report.md`
-5. Show progress updates throughout the process
+Launch the interactive web application:
+
+```bash
+streamlit run app.py
+```
+
+The web interface provides:
+- Interactive research configuration
+- Live progress tracking
+- Research tree visualization
+- Downloadable reports and data
+- Source and citation management
+
+## How It Works
+
+### Research Process Architecture
+
+1. **Query Analysis**: Analyzes topic complexity to determine optimal research parameters
+2. **Follow-up Questions**: Generates clarifying questions to refine research focus
+3. **Query Generation**: Creates semantically diverse search queries
+4. **Deep Research**: Conducts multi-layered research with the specified depth and breadth
+   - For comprehensive mode: Implements recursive exploration of sub-topics
+5. **Research Tree Building**: Maintains a structured tree of research queries and findings
+6. **Report Generation**: Synthesizes findings into a detailed markdown report with citations
+
+### Research Modes in Detail
+
+| Mode | Depth | Breadth | Processing Time | Recursive | Follow-up Questions |
+|------|-------|---------|----------------|-----------|---------------------|
+| Fast | Low | Limited | 1-2 min | No | 2-3 |
+| Balanced | Medium | Medium | 3-6 min | No | 3-5 |
+| Comprehensive | High | Wide + Deep | 5-15 min | Yes | 5-7 |
+
+### Technical Implementation
+
+- **Model Rotation**: Automatically rotates between available Gemini models for optimal performance
+- **Tree-based Progress Tracking**: Visualizes research progress with a hierarchical tree structure
+- **Concurrent Processing**: Processes multiple queries in parallel for efficiency
+- **Citation Management**: Tracks and formats sources with proper citations
+- **Custom JSON Schemas**: Uses structured output for consistent data handling
 
 ## Project Structure
 
 ```
 open-gemini-deep-research/
-├── .devcontainer/
-│   └── devcontainer.json
-├── src/
-│   ├── __init__.py
-│   └── deep_research.py
-├── .env
-├── .gitignore
-├── dockerfile
-├── main.py
-├── README.md
-└── requirements.txt
+├── app.py                    # Streamlit web interface
+├── dockerfile                # Docker configuration
+├── main.py                   # CLI entry point
+├── README.md                 # Project documentation
+├── requirements.txt          # Python dependencies
+├── results/                  # Directory for saved research results
+└── src/                      # Source code
+    ├── __init__.py
+    ├── deep_research.py      # Core research functionality
+    └── gemini_client.py      # Gemini API integration
 ```
 
-## How It Works
+## Output Files
 
-### Research Modes
+Each research session produces:
+- `final_report.md`: Comprehensive markdown report with findings and citations
+- `results/report_{query}.md`: Saved copy of the report with a timestamped filename
+- `results/research_tree_{query}.json`: JSON representation of the research process tree
 
-The application offers three research modes that affect how deeply and broadly the research is conducted:
+## License
 
-1. **Fast Mode**
-   - Performs quick, surface-level research
-   - Maximum of 3 concurrent queries
-   - No recursive deep diving
-   - Typically generates 2-3 follow-up questions per query
-   - Best for time-sensitive queries or initial exploration
-   - Processing time: ~1-3 minutes
+[MIT License](LICENSE)
 
-2. **Balanced Mode** (Default)
-   - Provides moderate depth and breadth
-   - Maximum of 7 concurrent queries
-   - No recursive deep diving
-   - Generates 3-5 follow-up questions per query
-   - Explores main concepts and their immediate relationships
-   - Processing time: ~3-6 minutes
-   - Recommended for most research needs
+## Acknowledgments
 
-3. **Comprehensive Mode**
-   - Conducts exhaustive, in-depth research
-   - Maximum of 5 initial queries, but includes recursive deep diving
-   - Each query can spawn sub-queries that go deeper into the topic
-   - Generates 5-7 follow-up questions with recursive exploration
-   - Explores primary, secondary, and tertiary relationships
-   - Includes counter-arguments and alternative viewpoints
-   - Processing time: ~5-12 minutes
-   - Best for academic or detailed analysis
-
-### Research Process
-
-1. **Query Analysis**
-   - Analyzes initial query to determine optimal research parameters
-   - Assigns breadth (1-10 scale) and depth (1-5 scale) values
-   - Adjusts parameters based on query complexity and chosen mode
-
-2. **Query Generation**
-   - Creates unique, non-overlapping search queries
-   - Uses semantic similarity checking to avoid redundant queries
-   - Maintains query history to prevent duplicates
-   - Adapts number of queries based on mode settings
-
-3. **Research Tree Building**
-   - Implements a tree structure to track research progress
-   - Each query gets a unique UUID for tracking
-   - Maintains parent-child relationships between queries
-   - Tracks query order and completion status
-   - Provides detailed progress visualization through JSON tree structure
-
-4. **Deep Research** (Comprehensive Mode)
-   - Implements recursive research strategy
-   - Each query can generate one follow-up query
-   - Reduces breadth at deeper levels (breadth/2)
-   - Maintains visited URLs to avoid duplicates
-   - Combines learnings from all levels
-
-5. **Report Generation**
-   - Synthesizes findings into a coherent narrative
-   - Minimum 3000-word detailed report
-   - Includes inline citations and source tracking
-   - Organizes information by relevance and relationship
-   - Adds creative elements like scenarios and analogies
-   - Maintains factual accuracy while being engaging
-
-### Technical Implementation
-
-- Uses Google's Gemini AI for:
-  - Query analysis and generation
-  - Content processing and synthesis
-  - Semantic similarity checking
-  - Report generation
-- Implements concurrent processing for queries
-- Uses progress tracking system with tree visualization
-- Maintains research tree structure for relationship mapping
-
-#### Research Tree Implementation
-
-The research tree is implemented through the `ResearchProgress` class that tracks:
-- Query relationships (parent-child)
-- Query completion status
-- Learnings per query
-- Query order
-- Unique IDs for each query
-
-The complete research tree structure is automatically saved to `research_tree.json` when generating the final report, allowing for later analysis or visualization of the research process.
-
-Example tree structure:
-```json
-{
-  "query": "root query",
-  "id": "uuid-1",
-  "status": "completed",
-  "depth": 2,
-  "learnings": ["learning 1", "learning 2"],
-  "sub_queries": [
-    {
-      "query": "sub-query 1",
-      "id": "uuid-2",
-      "status": "completed",
-      "depth": 1,
-      "learnings": ["learning 3"],
-      "sub_queries": [],
-      "parent_query": "root query"
-    }
-  ],
-  "parent_query": null
-}
-```
+- Google Gemini API for providing the underlying AI capabilities
+- Streamlit for the interactive web interface framework
