@@ -238,6 +238,17 @@ class GeminiClient:
 
         # Filter out unsupported schema fields (e.g. 'additionalProperties') to avoid errors
         filtered_schema = {k: v for k, v in schema.items() if k != 'additionalProperties'}
+        
+        # Ensure properties exist for OBJECT type schemas to avoid the error
+        if filtered_schema.get('type') == 'OBJECT' and 'properties' not in filtered_schema:
+            filtered_schema['properties'] = {}
+        
+        # Handle nested object types that might be missing properties
+        if 'properties' in filtered_schema:
+            for prop_name, prop_schema in filtered_schema['properties'].items():
+                if isinstance(prop_schema, dict) and prop_schema.get('type') == 'OBJECT' and 'properties' not in prop_schema:
+                    filtered_schema['properties'][prop_name]['properties'] = {}
+
         generation_config["response_schema"] = content.Schema(**filtered_schema)
 
         def make_api_call():
