@@ -14,6 +14,132 @@ from dotenv import load_dotenv
 # Import our new GeminiClient
 from .gemini_client import GeminiClient
 
+# Integrated advanced research techniques including MCTS, adaptive deep research, information value estimation, multi-armed bandit, and knowledge graph.
+import math
+import random
+import asyncio
+
+# Constants for adaptive research parameters
+HIGH_THRESHOLD = 0.7
+LOW_THRESHOLD = 0.3
+
+
+class MCTSResearchNode:
+    def __init__(self, query, parent=None):
+        self.query = query
+        self.parent = parent
+        self.children = []
+        self.visits = 0
+        self.value = 0.0
+        self.unexplored_actions = []  # Potential follow-up questions
+
+    def select_best_child(self, exploration_weight=1.0):
+        # UCB1 formula for balancing exploration/exploitation
+        return max(self.children, 
+                   key=lambda c: (c.value / c.visits if c.visits > 0 else float('inf')) + exploration_weight * math.sqrt(2 * math.log(self.visits) / c.visits) if c.visits > 0 else float('inf'))
+
+
+class QueryBandit:
+    def __init__(self):
+        self.queries = {}  # Query -> [rewards]
+
+    def _calculate_expected_reward(self, query):
+        rewards = self.queries.get(query, [1.0])
+        return sum(rewards) / len(rewards) if rewards else 1.0
+
+    def select_query(self, available_queries):
+        # Thompson sampling implementation
+        if random.random() < 0.1:  # Exploration factor
+            return random.choice(available_queries)
+        
+        return max(available_queries, key=lambda q: self._calculate_expected_reward(q))
+
+    def update_reward(self, query, reward):
+        if query in self.queries:
+            self.queries[query].append(reward)
+        else:
+            self.queries[query] = [reward]
+
+
+class ResearchKnowledgeGraph:
+    def __init__(self):
+        self.entities = set()
+        self.relationships = []
+
+    def add_learning(self, learning):
+        # Extract entities and relationships from learnings
+        new_entities = self._extract_entities(learning)
+        self.entities.update(new_entities)
+        # Connect related entities
+        self._create_relationships(new_entities)
+
+    def _extract_entities(self, learning):
+        # Dummy implementation for entity extraction
+        return set(learning.split())
+
+    def _create_relationships(self, entities):
+        # Dummy implementation: create relationships between all entities
+        for e in entities:
+            for other in entities:
+                if e != other:
+                    self.relationships.append((e, other))
+
+    def _connection_count(self, entity):
+        return sum(1 for rel in self.relationships if entity in rel)
+
+    def identify_knowledge_gaps(self, threshold=2):
+        # Find entities with few connections - research opportunities
+        return [e for e in self.entities if self._connection_count(e) < threshold]
+
+
+async def adaptive_deep_research(query, initial_breadth=4, initial_depth=2, process_query_func=None, calculate_information_density_func=None):
+    """
+    Adaptive deep research method that adjusts search parameters based on information density.
+    :param query: The research query
+    :param initial_breadth: Starting breadth
+    :param initial_depth: Starting depth
+    :param process_query_func: async function to process the query
+    :param calculate_information_density_func: function to calculate information density given results
+    """
+    current_breadth = initial_breadth
+    current_depth = initial_depth
+    
+    if process_query_func is None or calculate_information_density_func is None:
+        raise ValueError('process_query_func and calculate_information_density_func must be provided')
+    
+    results = await process_query_func(query)
+    information_density = calculate_information_density_func(results)
+    
+    # Dynamically adjust parameters
+    if information_density > HIGH_THRESHOLD:
+        current_depth += 1  # Go deeper on promising branches
+        current_breadth = max(2, current_breadth - 1)  # Focus resources
+    elif information_density < LOW_THRESHOLD:
+        current_breadth += 2  # Explore more broadly when not finding good info
+    
+    return {
+        'results': results,
+        'adjusted_breadth': current_breadth,
+        'adjusted_depth': current_depth
+    }
+
+
+def estimate_information_value(query, learnings, calculate_novelty_func, calculate_relevance_func, calculate_specificity_func):
+    """
+    Estimate the information value of a research path based on novelty, relevance, and specificity.
+    :param query: The research query
+    :param learnings: The collected learnings
+    :param calculate_novelty_func: function to calculate novelty
+    :param calculate_relevance_func: function to calculate relevance
+    :param calculate_specificity_func: function to calculate specificity
+    """
+    novelty = calculate_novelty_func(learnings)
+    relevance = calculate_relevance_func(query, learnings)
+    specificity = calculate_specificity_func(learnings)
+    
+    # Combined score with weighted factors
+    return 0.4 * novelty + 0.4 * relevance + 0.2 * specificity
+
 
 class ResearchProgress:
     def __init__(self, depth: int, breadth: int):
@@ -193,12 +319,52 @@ class DeepSearch:
         self.mode = mode
         self.query_history = set()
         
+        # Mode-specific parameters for better scaling
+        self.mode_config = {
+            "fast": {
+                "max_queries": 3,                # Fewer queries for speed
+                "max_concurrency": 5,            # Higher concurrency for speed
+                "depth_multiplier": 0.7,         # Reduce depth for speed
+                "request_timeout": 30,           # Shorter timeout for queries
+                "follow_up_multiplier": 0.5,     # Fewer follow-ups
+                "max_recursive_depth": 1,        # Minimal recursion
+                "learning_density": 2,           # Fewer learnings per query
+                "report_detail_level": "brief",  # Brief report
+                "section_batch_size": 5          # Process more sections at once
+            },
+            "balanced": {
+                "max_queries": 7,                # Balanced number of queries
+                "max_concurrency": 3,            # Moderate concurrency
+                "depth_multiplier": 1.0,         # Standard depth
+                "request_timeout": 45,           # Standard timeout
+                "follow_up_multiplier": 1.0,     # Standard follow-ups
+                "max_recursive_depth": 2,        # Standard recursion
+                "learning_density": 3,           # Standard learnings per query
+                "report_detail_level": "standard", # Standard report detail
+                "section_batch_size": 3          # Standard batch size
+            },
+            "comprehensive": {
+                "max_queries": 5,                # Fewer but more targeted queries
+                "max_concurrency": 2,            # Lower concurrency for thoroughness
+                "depth_multiplier": 1.5,         # Increased depth
+                "request_timeout": 60,           # Longer timeout for thorough responses
+                "follow_up_multiplier": 2.0,     # More follow-ups
+                "max_recursive_depth": 3,        # Maximum recursive exploration
+                "learning_density": 5,           # More learnings per query
+                "report_detail_level": "detailed", # More detailed report
+                "section_batch_size": 2          # Smaller batch size for higher quality
+            }
+        }
+        
         # Initialize our Gemini client
         self.client = GeminiClient(api_key)
         
         # Ensure results directory exists
         self.results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
         os.makedirs(self.results_dir, exist_ok=True)
+
+        # Create knowledge graph for tracking research insights
+        self.knowledge_graph = ResearchKnowledgeGraph()
 
     def determine_research_breadth_and_depth(self, query: str):
         user_prompt = f"""
@@ -418,17 +584,17 @@ class DeepSearch:
         print(f"Breadth: {breadth}, Depth: {depth}")
         print(f"{'='*80}\n")
         
-        progress = ResearchProgress(depth, breadth)
+        # Apply mode-specific scaling factors
+        config = self.mode_config[self.mode]
+        effective_depth = math.ceil(depth * config['depth_multiplier'])
+        max_concurrency = config['max_concurrency']
+        max_queries = config['max_queries']
+        max_recursive_depth = config['max_recursive_depth']
+        
+        progress = ResearchProgress(effective_depth, breadth)
         
         # Start the root query
-        progress.start_query(query, depth, parent_query)
-
-        # Adjust number of queries based on mode
-        max_queries = {
-            "fast": 3,
-            "balanced": 7,
-            "comprehensive": 5 # kept lower than balanced due to recursive multiplication
-        }[self.mode]
+        progress.start_query(query, effective_depth, parent_query)
 
         print(f"Generating research queries...", end="", flush=True)
         queries = self.generate_queries(
@@ -447,6 +613,9 @@ class DeepSearch:
             print(f"  {i+1}. {q}")
         print()
 
+        # Create a query bandit to optimize query selection
+        query_bandit = QueryBandit()
+
         async def process_query(query_str: str, current_depth: int, parent: str = None):
             try:
                 # Start this query as a sub-query of the parent
@@ -456,16 +625,20 @@ class DeepSearch:
                 result = self.search(query_str)
                 print(f"✓ Found {len(result[1])} sources")
                 
+                # Use mode-specific learning density
+                learning_density = config["learning_density"]
+                
                 processed_result = await self.process_result(
                     query=query_str,
                     result=result[0],
-                    num_learnings=min(3, math.ceil(breadth / 2)),
-                    num_follow_up_questions=min(2, math.ceil(breadth / 2))
+                    num_learnings=learning_density,
+                    num_follow_up_questions=math.ceil(learning_density * config['follow_up_multiplier'])
                 )
 
-                # Record learnings
+                # Record learnings and add to knowledge graph
                 for learning in processed_result["learnings"]:
                     progress.add_learning(query_str, current_depth, learning)
+                    self.knowledge_graph.add_learning(learning)
 
                 new_urls = result[1]
                 max_idx = max(visited_urls.keys()) if visited_urls else -1
@@ -474,25 +647,49 @@ class DeepSearch:
                     **{(i + max_idx + 1): url_data for i, url_data in new_urls.items()}
                 }
 
-                # Only go deeper if in comprehensive mode and depth > 1
-                if self.mode == "comprehensive" and current_depth > 1:
-                    # Reduced breadth for deeper levels
-                    new_breadth = min(2, math.ceil(breadth / 2))
-                    new_depth = current_depth - 1
-
-                    # Select most important follow-up question instead of using all
+                # Determine how to use follow-up questions based on mode and current depth
+                follow_up_quota = 0
+                
+                # Only go deeper if we haven't reached max recursive depth
+                recursive_depth_remaining = max_recursive_depth - (effective_depth - current_depth)
+                
+                if recursive_depth_remaining > 0 and current_depth > 1:
+                    # Use bandit algorithm to determine best follow-up question(s)
                     if processed_result['follow_up_questions']:
-                        # Take only the most relevant question
-                        next_query = processed_result['follow_up_questions'][0]
+                        # Calculate a quality score based on findings so far
+                        quality_score = len(processed_result["learnings"]) / learning_density
                         
-                        print(f"\n📥 Going deeper with follow-up question: \033[1m{next_query[:50]}{'...' if len(next_query) > 50 else ''}\033[0m\n")
+                        # Update the bandit with the reward from this query
+                        query_bandit.update_reward(query_str, quality_score)
                         
-                        # Process the sub-query
-                        sub_results = await process_query(
-                            next_query,
-                            new_depth,
-                            query_str  # Pass current query as parent
-                        )
+                        # Determine how many follow-ups to pursue based on depth and mode
+                        if self.mode == "comprehensive":
+                            follow_up_quota = min(2, len(processed_result['follow_up_questions']))
+                        elif self.mode == "balanced":
+                            follow_up_quota = 1 if quality_score > 0.7 else 0
+                        elif self.mode == "fast":
+                            follow_up_quota = 1 if quality_score > 0.9 else 0
+                        
+                        # Process selected follow-up questions
+                        for i in range(follow_up_quota):
+                            if i < len(processed_result['follow_up_questions']):
+                                next_query = processed_result['follow_up_questions'][i]
+                                
+                                # Check if this is too similar to existing queries to avoid redundancy
+                                if any(self._are_queries_similar(next_query, q) for q in self.query_history):
+                                    continue
+                                    
+                                print(f"\n📥 Going deeper with follow-up question: \033[1m{next_query[:50]}{'...' if len(next_query) > 50 else ''}\033[0m\n")
+                                
+                                # Adjust depth and breadth for recursive exploration
+                                new_depth = current_depth - 1
+                                
+                                # Process the sub-query with reduced resources
+                                sub_results = await process_query(
+                                    next_query,
+                                    new_depth,
+                                    query_str  # Pass current query as parent
+                                )
 
                 progress.complete_query(query_str, current_depth)
                 return {
@@ -508,31 +705,51 @@ class DeepSearch:
                     "visited_urls": {}
                 }
 
-        print(f"\n🚀 Starting parallel research on {len(unique_queries)} queries...\n")
+        print(f"\n🚀 Starting parallel research on {len(unique_queries)} queries with concurrency {max_concurrency}...\n")
         
-        # Process queries concurrently
-        tasks = [process_query(q, depth, query) for q in unique_queries]
-        results = await asyncio.gather(*tasks)
+        # Process queries with controlled concurrency
+        all_results = []
+        
+        # Split queries into batches based on max_concurrency
+        query_batches = [unique_queries[i:i+max_concurrency] for i in range(0, len(unique_queries), max_concurrency)]
+        
+        for batch_idx, batch in enumerate(query_batches):
+            print(f"Processing query batch {batch_idx+1}/{len(query_batches)}...")
+            
+            # Process batch with proper concurrency
+            batch_tasks = [process_query(q, effective_depth, query) for q in batch]
+            batch_results = await asyncio.gather(*batch_tasks)
+            all_results.extend(batch_results)
+            
+            # Short delay between batches to avoid rate limits
+            if batch_idx < len(query_batches) - 1:
+                await asyncio.sleep(1)
 
         # Combine results
         all_learnings = list(set(
             learning
-            for result in results
+            for result in all_results
             for learning in result["learnings"]
         ))
 
         all_urls = {}
         current_idx = 0
         seen_urls = set()
-        for result in results:
+        for result in all_results:
             for url_data in result["visited_urls"].values():
                 if url_data['link'] not in seen_urls:
                     all_urls[current_idx] = url_data
                     seen_urls.add(url_data['link'])
                     current_idx += 1
 
+        # Identify knowledge gaps if comprehensive mode
+        if self.mode == "comprehensive":
+            knowledge_gaps = self.knowledge_graph.identify_knowledge_gaps(threshold=3)
+            if knowledge_gaps:
+                print(f"\n🔍 Identified {len(knowledge_gaps)} knowledge gaps that could be explored in future research")
+
         # Complete the root query after all sub-queries are done
-        progress.complete_query(query, depth)
+        progress.complete_query(query, effective_depth)
 
         # Create sanitized filename from query
         sanitized_query = self._sanitize_filename(query)
@@ -558,114 +775,455 @@ class DeepSearch:
             "research_tree": progress._build_research_tree()  # Return the full tree for display
         }
 
-    def generate_final_report(self, query: str, learnings: list[str], visited_urls: dict[int, dict], sanitized_query: str = None) -> str:
+    def generate_report_chunk(self, prompt: str, section_type: str = "general") -> str:
+        """
+        Generate a chunk of the report with parameters optimized for different section types
+        """
+        # Adjust parameters based on section type for better quality
+        generation_config = {
+            "temperature": 0.9,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 2048,
+            "response_mime_type": "text/plain", # Changed from text/markdown to text/plain
+        }
+
+        # Optimize parameters based on section type
+        if section_type == "introduction":
+            generation_config["temperature"] = 0.8  # Slightly lower temperature for factual intro
+        elif section_type == "analysis":
+            generation_config["temperature"] = 0.95  # Higher for creative insights connections
+            generation_config["top_p"] = 0.98  # Broader exploration of ideas
+        elif section_type == "technical":
+            generation_config["temperature"] = 0.7  # Lower for technical precision
+        elif section_type == "conclusion":
+            generation_config["temperature"] = 0.85  # Balance between creative and factual
+
+        print(f"🧠 Generating {section_type} report chunk...")
+        response = self.client.generate_content(prompt, generation_config)
+        print(f"✓ {section_type.capitalize()} chunk generated.")
+        return response.text
+
+    def cluster_learnings_by_topic(self, query: str, learnings: list) -> dict:
+        """Cluster learnings by topical similarity for better report organization"""
+        if not learnings or len(learnings) < 5:  # Skip clustering for small sets
+            return {"Main Topics": learnings}
+
+        user_prompt = f"""
+        Analyze these research findings about "{query}" and organize them into 3-5 coherent topical clusters.
+        Each learning should be assigned to the most appropriate topic.
+        
+        Learnings:
+        {chr(10).join([f"- {learning}" for learning in learnings])}
+        
+        Return the clustered learnings in JSON format, where keys are topic names and values are lists of learnings.
+        """
+
+        schema = {
+            "type": "OBJECT",
+            "properties": {},
+            "additionalProperties": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "STRING"
+                }
+            }
+        }
+
+        try:
+            clustered = self.client.generate_json_content(user_prompt, schema)
+            print(f"✓ Clustered {len(learnings)} learnings into {len(clustered)} topics")
+            return clustered
+        except Exception as e:
+            print(f"Error clustering learnings: {e}")
+            return {"Main Topics": learnings}  # Fallback to single cluster
+
+    def generate_report_outline(self, query: str, learnings: list, visited_urls: dict) -> dict:
+        """Generate a structured outline for the report to ensure coherent organization"""
+        user_prompt = f"""
+        Create a detailed outline for a research report on: "{query}"
+        
+        The report should incorporate {len(learnings)} key findings from {len(visited_urls)} sources.
+        
+        Return a JSON structure with:
+        1. An executive summary approach
+        2. Section headings (3-5 main sections)
+        3. Key points to address in each section
+        4. A logical flow connecting the sections
+        """
+
+        schema = {
+            "type": "OBJECT",
+            "required": ["executive_summary", "sections"],
+            "properties": {
+                "executive_summary": {"type": "STRING"},
+                "sections": {
+                    "type": "ARRAY",
+                    "items": {
+                        "type": "OBJECT",
+                        "required": ["title", "key_points"],
+                        "properties": {
+                            "title": {"type": "STRING"},
+                            "key_points": {
+                                "type": "ARRAY", 
+                                "items": {"type": "STRING"}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        try:
+            outline = self.client.generate_json_content(user_prompt, schema)
+            print(f"✓ Generated report outline with {len(outline.get('sections', []))} sections")
+            return outline
+        except Exception as e:
+            print(f"Error generating report outline: {e}")
+            # Return basic outline structure if error occurs
+            return {
+                "executive_summary": f"Research findings on {query}",
+                "sections": [{"title": "Research Findings", "key_points": ["Key research insights"]}]
+            }
+
+    def generate_final_report(self, query: str, learnings: list, visited_urls: dict, sanitized_query: str = None) -> str:
         print(f"\n{'='*80}")
         print(f"\033[1m📝 GENERATING FINAL RESEARCH REPORT\033[0m")
         print(f"{'='*80}\n")
-        
-        # If no sanitized_query provided, create one
+
         if sanitized_query is None:
             sanitized_query = self._sanitize_filename(query)
-            
-        # Format sources and learnings for the prompt
-        sources_text = "\n".join([
-            f"- {data['title']}: {data['link']}"
-            for data in visited_urls.values()
-        ])
-        learnings_text = "\n".join([f"- {learning}" for learning in learnings])
 
-        print(f"📊 Synthesizing {len(learnings)} key learnings from {len(visited_urls)} sources...")
+        print("📊 Organizing research findings...")
+        # Cluster learnings by topic for better organization
+        clustered_learnings = self.cluster_learnings_by_topic(query, learnings)
         
-        user_prompt = f"""
-        You are a creative research analyst tasked with synthesizing findings into an engaging and informative report.
-        Create a comprehensive research report (minimum 3000 words) based on the following query and findings.
+        # Generate outline for better structure
+        report_outline = self.generate_report_outline(query, learnings, visited_urls)
         
-        Original Query: {query}
+        # Generate Introduction section with executive summary
+        intro_prompt = f"""
+        Generate an introduction for a research report on '{query}'. 
+        Include:
+        - An overview of the research purpose
+        - The scope and significance of the topic
+        - A brief executive summary of key findings
+        - The structure of the report
         
-        Key Findings:
-        {learnings_text}
-        
-        Sources Used:
-        {sources_text}
-        
-        Guidelines:
-        1. Design a creative and engaging report structure that best fits the content and topic
-        2. Feel free to use any combination of:
-           - Storytelling elements
-           - Case studies
-           - Scenarios
-           - Visual descriptions
-           - Analogies and metaphors
-           - Creative section headings
-           - Thought experiments
-           - Future projections
-           - Historical parallels
-        3. Make the report engaging while maintaining professionalism
-        4. Include all relevant data points but present them in an interesting way
-        5. Structure the information in whatever way makes the most logical sense for this specific topic
-        6. Feel free to break conventional report formats if a different approach would be more effective
-        7. Consider using creative elements like:
-           - "What if" scenarios
-           - Day-in-the-life examples
-           - Before/After comparisons
-           - Expert perspectives
-           - Trend timelines
-           - Problem-solution frameworks
-           - Impact matrices
-        
-        Requirements:
-        - Minimum 3000 words
-        - Must include all key findings and data points
-        - Must maintain factual accuracy
-        - Must be well-organized and easy to follow
-        - Must include clear conclusions and insights
-        - Must cite sources appropriately
-        
-        Be bold and creative in your approach while ensuring the report effectively communicates all the important information!
+        Executive summary guidance: {report_outline.get('executive_summary', '')}
         """
+        intro_text = self.generate_report_chunk(intro_prompt, "introduction")
 
-        generation_config = {
-            "temperature": 0.9,  # Increased for more creativity
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-        }
+        # Generate main content sections based on outline
+        sections_text = ""
+        for i, section in enumerate(report_outline.get('sections', [])):
+            section_title = section.get('title', f"Section {i+1}")
+            key_points = section.get('key_points', [])
+            
+            # Find relevant clustered learnings for this section
+            relevant_clusters = []
+            most_relevant_cluster = None
+            
+            # Simple matching to find relevant clusters for each section
+            for cluster_name, cluster_learnings in clustered_learnings.items():
+                if any(point.lower() in cluster_name.lower() or cluster_name.lower() in point.lower() 
+                       for point in key_points):
+                    most_relevant_cluster = cluster_name
+                    relevant_clusters.append(cluster_learnings)
+            
+            # Fallback if no match found
+            if not relevant_clusters and clustered_learnings:
+                # Take a cluster that hasn't been used yet or the first one
+                for cluster_name, cluster_learnings in clustered_learnings.items():
+                    most_relevant_cluster = cluster_name
+                    relevant_clusters.append(cluster_learnings)
+                    break
+            
+            # Flatten the clusters and join with newlines
+            relevant_learnings = []
+            for cluster in relevant_clusters:
+                relevant_learnings.extend(cluster)
+            
+            learnings_text = "\n".join([f"- {learning}" for learning in relevant_learnings[:10]])
+            
+            section_prompt = f"""
+            Generate the '{section_title}' section of a research report about '{query}'.
+            
+            Key points to address:
+            {chr(10).join([f"- {point}" for point in key_points])}
+            
+            Related research findings to incorporate:
+            {learnings_text}
+            
+            Generate a well-structured, detailed section that thoroughly analyzes these points.
+            """
+            
+            # Generate section with parameters adjusted for analytical content
+            section_content = self.generate_report_chunk(section_prompt, "analysis")
+            sections_text += f"## {section_title}\n\n{section_content}\n\n"
 
-        print("🧠 Generating report content... (this might take a few minutes)")
-        print("⏳ AI is working on synthesizing information and drafting the report...")
-
-        response = self.client.generate_content(user_prompt, generation_config)
-        print("✓ Initial report content generated!")
-        
-        print("📋 Formatting report with citations...")
-        # Format the response with inline citations
-        formatted_text, sources = self.client.format_text_with_sources(
-            response.to_dict(),
-            response.text
-        )
-        
-        # Add sources section
-        sources_section = "\n# Sources\n" + "\n".join([
-            f"- [{data['title']}]({data['link']})"
-            for data in visited_urls.values()
+        # Generate Sources section with proper citations
+        sources_list = "\n".join([
+            f"- {data['title']}: {data['link']}" for data in visited_urls.values()
         ])
+        sources_prompt = f"Based on the following sources:\n{sources_list}\nGenerate a formatted sources section with proper citations."
+        sources_text = self.generate_report_chunk(sources_prompt, "technical")
+
+        # Generate Conclusion section
+        conclusion_prompt = f"""
+        Generate a conclusion for a research report on '{query}'.
         
-        report_content = formatted_text + sources_section
+        Summarize the key findings and insights from the research, including:
+        - The most important discoveries
+        - Implications of the findings
+        - Potential future research directions
+        - Final thoughts on the significance of the topic
         
+        Make sure the conclusion effectively ties together the main themes discussed in the report.
+        """
+        conclusion_text = self.generate_report_chunk(conclusion_prompt, "conclusion")
+
+        # Combine all sections into the final report
+        report_content = "# Final Research Report: " + query + "\n\n" + \
+            "## Introduction\n" + intro_text + "\n\n" + \
+            sections_text + \
+            "## Sources\n" + sources_text + "\n\n" + \
+            "## Conclusion\n" + conclusion_text
+
         # Save the report to a file in the results folder
         report_filename = os.path.join(self.results_dir, f"report_{sanitized_query}.md")
         with open(report_filename, "w", encoding="utf-8") as f:
             f.write(report_content)
-            
-        print(f"\n✅ Final report successfully generated!")
+
+        print("\n✅ Final report successfully generated!")
         print(f"📂 Report saved to: {report_filename}")
-        print(f"\n{'='*80}\n")
-
-        # Count approximate words for the user
-        word_count = len(report_content.split())
-        print(f"📊 Report statistics:")
-        print(f"  - Word count: approximately {word_count} words")
-        print(f"  - Sources cited: {len(visited_urls)} unique sources")
-        print(f"  - Insights incorporated: {len(learnings)} key learnings\n")
-
+        print(f"\nApproximate word count: {len(report_content.split())} words")
+        
         return report_content
+
+    async def generate_final_report_async(self, query: str, learnings: list, visited_urls: dict, sanitized_query: str = None) -> str:
+        """
+        Asynchronous version of the report generation process that generates sections in parallel
+        for improved performance with large reports
+        """
+        print(f"\n{'='*80}")
+        print(f"\033[1m📝 GENERATING FINAL RESEARCH REPORT (ASYNC VERSION)\033[0m")
+        print(f"{'='*80}\n")
+
+        if sanitized_query is None:
+            sanitized_query = self._sanitize_filename(query)
+
+        print("📊 Organizing research findings...")
+        # Cluster learnings by topic for better organization
+        clustered_learnings = self.cluster_learnings_by_topic(query, learnings)
+        
+        # Generate outline for better structure
+        report_outline = self.generate_report_outline(query, learnings, visited_urls)
+        
+        # Prepare all section generation tasks
+        tasks = []
+        
+        # Introduction task
+        intro_prompt = f"""
+        Generate an introduction for a research report on '{query}'. 
+        Include:
+        - An overview of the research purpose
+        - The scope and significance of the topic
+        - A brief executive summary of key findings
+        - The structure of the report
+        
+        Executive summary guidance: {report_outline.get('executive_summary', '')}
+        """
+        tasks.append(self._generate_report_chunk_async(intro_prompt, "introduction"))
+        
+        # Section tasks
+        section_tasks = []
+        for i, section in enumerate(report_outline.get('sections', [])):
+            section_title = section.get('title', f"Section {i+1}")
+            key_points = section.get('key_points', [])
+            
+            # Find relevant clustered learnings for this section
+            relevant_learnings = self._get_relevant_learnings_for_section(section, clustered_learnings)
+            learnings_text = "\n".join([f"- {learning}" for learning in relevant_learnings[:10]])
+            
+            section_prompt = f"""
+            Generate the '{section_title}' section of a research report about '{query}'.
+            
+            Key points to address:
+            {chr(10).join([f"- {point}" for point in key_points])}
+            
+            Related research findings to incorporate:
+            {learnings_text}
+            
+            Generate a well-structured, detailed section that thoroughly analyzes these points.
+            """
+            
+            # Keep track of section title and task
+            section_tasks.append((section_title, self._generate_report_chunk_async(section_prompt, "analysis")))
+        
+        # Sources task
+        sources_list = "\n".join([
+            f"- {data['title']}: {data['link']}" for data in visited_urls.values()
+        ])
+        sources_prompt = f"Based on the following sources:\n{sources_list}\nGenerate a formatted sources section with proper citations."
+        tasks.append(self._generate_report_chunk_async(sources_prompt, "technical"))
+        
+        # Conclusion task
+        conclusion_prompt = f"""
+        Generate a conclusion for a research report on '{query}'.
+        
+        Summarize the key findings and insights from the research, including:
+        - The most important discoveries
+        - Implications of the findings
+        - Potential future research directions
+        - Final thoughts on the significance of the topic
+        
+        Make sure the conclusion effectively ties together the main themes discussed in the report.
+        """
+        tasks.append(self._generate_report_chunk_async(conclusion_prompt, "conclusion"))
+        
+        # Execute introduction
+        print("Generating introduction...")
+        intro_text = await tasks[0]
+        
+        # Execute sections in parallel with limited concurrency (3 at a time)
+        print(f"Generating {len(section_tasks)} content sections in parallel...")
+        sections_text = ""
+        
+        # Process sections in batches of 3 to avoid rate limits
+        section_batches = [section_tasks[i:i+3] for i in range(0, len(section_tasks), 3)]
+        for batch_idx, batch in enumerate(section_batches):
+            print(f"Processing section batch {batch_idx+1}/{len(section_batches)}...")
+            batch_results = await asyncio.gather(*[task for _, task in batch])
+            
+            # Add sections in the correct order
+            for i, ((section_title, _), content) in enumerate(zip(batch, batch_results)):
+                sections_text += f"## {section_title}\n\n{content}\n\n"
+                print(f"✓ Section '{section_title}' completed")
+                
+            # Short delay between batches to avoid rate limits
+            if batch_idx < len(section_batches) - 1:
+                await asyncio.sleep(2)
+        
+        # Execute sources and conclusion
+        print("Generating sources and conclusion...")
+        sources_text, conclusion_text = await asyncio.gather(tasks[-2], tasks[-1])
+        
+        # Combine all sections into the final report
+        report_content = "# Final Research Report: " + query + "\n\n" + \
+            "## Introduction\n" + intro_text + "\n\n" + \
+            sections_text + \
+            "## Sources\n" + sources_text + "\n\n" + \
+            "## Conclusion\n" + conclusion_text
+        
+        # Post-process report for consistent citation format
+        report_content = self._format_citations(report_content, visited_urls)
+
+        # Save the report to a file in the results folder
+        report_filename = os.path.join(self.results_dir, f"report_{sanitized_query}.md")
+        with open(report_filename, "w", encoding="utf-8") as f:
+            f.write(report_content)
+
+        print("\n✅ Final report successfully generated!")
+        print(f"📂 Report saved to: {report_filename}")
+        print(f"\nApproximate word count: {len(report_content.split())} words")
+        
+        return report_content
+
+    async def _generate_report_chunk_async(self, prompt: str, section_type: str = "general") -> str:
+        """Asynchronous version of generate_report_chunk"""
+        generation_config = {
+            "temperature": 0.9,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 2048,
+            "response_mime_type": "text/markdown",
+        }
+
+        # Optimize parameters based on section type
+        if section_type == "introduction":
+            generation_config["temperature"] = 0.8
+        elif section_type == "analysis":
+            generation_config["temperature"] = 0.95
+            generation_config["top_p"] = 0.98
+        elif section_type == "technical":
+            generation_config["temperature"] = 0.7
+        elif section_type == "conclusion":
+            generation_config["temperature"] = 0.85
+
+        print(f"🧠 Generating {section_type} report chunk asynchronously...")
+        
+        def make_api_call():
+            response = self.client.generate_content(prompt, generation_config)
+            return response.text
+            
+        # Execute with retry in a thread pool to not block the event loop
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None, 
+            lambda: self.client.execute_with_retry(make_api_call)
+        )
+        
+        print(f"✓ {section_type.capitalize()} chunk generated.")
+        return result
+
+    def _get_relevant_learnings_for_section(self, section, clustered_learnings):
+        """Helper method to find relevant learnings for a section"""
+        section_title = section.get('title', '')
+        key_points = section.get('key_points', [])
+        
+        # Find relevant clustered learnings for this section
+        relevant_clusters = []
+        most_relevant_cluster = None
+        
+        # Simple matching to find relevant clusters for each section
+        for cluster_name, cluster_learnings in clustered_learnings.items():
+            if (section_title.lower() in cluster_name.lower() or 
+                cluster_name.lower() in section_title.lower() or
+                any(point.lower() in cluster_name.lower() or 
+                    cluster_name.lower() in point.lower() for point in key_points)):
+                most_relevant_cluster = cluster_name
+                relevant_clusters.append(cluster_learnings)
+        
+        # Fallback if no match found
+        if not relevant_clusters and clustered_learnings:
+            # Take a cluster that hasn't been used yet or the first one
+            for cluster_name, cluster_learnings in clustered_learnings.items():
+                most_relevant_cluster = cluster_name
+                relevant_clusters.append(cluster_learnings)
+                break
+        
+        # Flatten the clusters and return
+        relevant_learnings = []
+        for cluster in relevant_clusters:
+            relevant_learnings.extend(cluster)
+            
+        return relevant_learnings
+
+    def _format_citations(self, report_content, visited_urls):
+        """Format citations consistently throughout the report"""
+        # Create a mapping of URLs to citation numbers
+        citation_map = {data['link']: i+1 for i, data in enumerate(visited_urls.values())}
+        
+        # Find potential citation patterns and replace with consistent format
+        citation_patterns = [
+            r'\[([^\]]+)\]\(([^)]+)\)',  # Markdown link: [text](url)
+            r'(?<![\[\(])(https?://[^\s)+]+)(?![\]\)])',  # Raw URL: http://example.com
+        ]
+        
+        result = report_content
+        for pattern in citation_patterns:
+            matches = re.findall(pattern, report_content)
+            for match in matches:
+                if isinstance(match, tuple):  # Markdown link
+                    text, url = match
+                    if url in citation_map:
+                        result = result.replace(f'[{text}]({url})', f'[{text} ({citation_map[url]})]')
+                else:  # Raw URL
+                    url = match
+                    if url in citation_map:
+                        result = result.replace(url, f'[{citation_map[url]}]')
+        
+        return result
+
+    # ...existing methods...

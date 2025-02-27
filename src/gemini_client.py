@@ -178,32 +178,68 @@ class GeminiClient:
             print(f"Error processing grounding metadata: {e}")
             return answer, {}
     
-    def generate_content(self, prompt: str, generation_config: Dict[str, Any]) -> Any:
+    def generate_content(self, prompt: str, generation_config: Dict[str, Any], research_type: Optional[str] = None) -> Any:
         """
-        Generate content using the current model with the specified config
+        Generate content using the current model with the specified config.
+        Optionally adjust scaling based on the user chosen research type.
         """
+        # Scale max_output_tokens based on research type
+        if research_type:
+            if research_type.lower() == 'brief':
+                generation_config["max_output_tokens"] = 1024
+            elif research_type.lower() == 'detailed':
+                generation_config["max_output_tokens"] = 8192
+            else:
+                # Default scaling
+                generation_config.setdefault("max_output_tokens", 4096)
+        else:
+            generation_config.setdefault("max_output_tokens", 4096)
+
+        # Validate response_mime_type
+        allowed_mimetypes = ["text/plain", "application/json", "text/x.enum"]
+        if generation_config.get("response_mime_type", "text/plain") not in allowed_mimetypes:
+            generation_config["response_mime_type"] = "text/plain"
+
         def make_api_call():
             model = genai.GenerativeModel(
                 self.get_current_model(),
                 generation_config=generation_config,
             )
             return model.generate_content(prompt)
-            
+        
         return self.execute_with_retry(make_api_call)
     
-    def generate_json_content(self, prompt: str, schema: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_json_content(self, prompt: str, schema: Dict[str, Any], research_type: Optional[str] = None) -> Dict[str, Any]:
         """
-        Generate JSON content using the specified schema
+        Generate JSON content using the specified schema and adjust scaling based on research type.
         """
         generation_config = {
             "temperature": 1,
             "top_p": 0.95,
             "top_k": 40,
-            "max_output_tokens": 8192,
-            "response_mime_type": "application/json",
-            "response_schema": content.Schema(**schema)
+            # Default; may be overridden below
+            "max_output_tokens": 4096,
+            "response_mime_type": "application/json"
         }
+
+        # Scale max_output_tokens based on research type
+        if research_type:
+            if research_type.lower() == 'brief':
+                generation_config["max_output_tokens"] = 1024
+            elif research_type.lower() == 'detailed':
+                generation_config["max_output_tokens"] = 8192
+            else:
+                generation_config.setdefault("max_output_tokens", 4096)
         
+        # Validate response_mime_type
+        allowed_mimetypes = ["text/plain", "application/json", "text/x.enum"]
+        if generation_config.get("response_mime_type") not in allowed_mimetypes:
+            generation_config["response_mime_type"] = "application/json"
+
+        # Filter out unsupported schema fields (e.g. 'additionalProperties') to avoid errors
+        filtered_schema = {k: v for k, v in schema.items() if k != 'additionalProperties'}
+        generation_config["response_schema"] = content.Schema(**filtered_schema)
+
         def make_api_call():
             model = genai.GenerativeModel(
                 self.get_current_model(),
