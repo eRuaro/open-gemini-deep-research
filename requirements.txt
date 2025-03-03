@@ -1,3 +1,17 @@
 google-genai==0.1.0
 google-generativeai==0.8.3
 python-dotenv==1.0.1
+streamlit==1.30.0
+numpy==1.24.3
+pandas==2.0.3
+pdfkit==1.0.0
+python-docx==1.0.1
+fpdf2==2.7.8
+weasyprint==60.2
+python-pptx==0.6.21
+markdown2==2.4.10
+streamlit-javascript==0.1.5
+rich==13.7.0
+
+# System dependencies for WeasyPrint (Windows):
+# Download and install GTK3 runtime from: https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases

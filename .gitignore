@@ -1,5 +1,42 @@
-.env
-
-*.json
-
+# Bytecode / distribution / logfiles
+__pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+logs/
+*.log
+*.csv
+
+# Environments
+.env
+venv/
+env/
+*/env/
+*/venv/
+open-res/*
+# VS Code
+.vscode/
+
+# Temporary files
+*.tmp
+*.swp
+*~
+temp/
+
+# OS generated files #
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+*.ipynb_checkpoints/
+
+# JSON data - consider if you want to track these or not.  If you generate them, ignore them.
+*.json
+results/
+# Packages
+node_modules/
+
+# Docker
+/docker-compose.yml
