@@ -3,9 +3,9 @@ import asyncio
 import os
 import time
 import json
-
+from pathlib import Path
 from src.deep_research import DeepSearch
-
+from src.export_utils import ExportUtils
 
 def display_title():
     """Display a fancy title for the application"""
@@ -51,13 +51,64 @@ def display_summary(results, elapsed_time):
             # Display summary
             for depth, counts in sorted(count_by_depth.items()):
                 print(f"  Depth {depth}: {counts['completed']}/{counts['total']} queries completed")
+
+    sanitized_query = results.get('sanitized_query', 'research')
+    results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+    os.makedirs(results_dir, exist_ok=True)
+
+    # Save the research outputs
+    report_path = os.path.join(results_dir, f"report_{sanitized_query}.md")
+    tree_path = os.path.join(results_dir, f"research_tree_{sanitized_query}.json")
     
     print(f"\n📚 Final Report generated and saved to:")
-    print(f"  - final_report.md (main directory)")
-    print(f"  - results/report_{results.get('sanitized_query', 'research')}.md")
+    print(f"  - {report_path}")
     
     print(f"\n🔍 Research Tree saved to:")
-    print(f"  - results/research_tree_{results.get('sanitized_query', 'research')}.json")
+    print(f"  - {tree_path}")
+    
+    print("\n📤 Export Options:")
+    print("  1. PDF     (pdf)")
+    print("  2. Word    (docx)")
+    print("  3. HTML    (html)")
+    print("  4. PowerPoint (pptx)")
+    print("  5. Skip export")
+    
+    while True:
+        try:
+            choice = input("\nEnter export format (pdf/docx/html/pptx) or press Enter to skip: ").lower().strip()
+            if not choice:
+                break
+                
+            if choice not in ['pdf', 'docx', 'html', 'pptx']:
+                print("Invalid choice. Please try again.")
+                continue
+                
+            # Read the markdown content from the results directory
+            with open(report_path, 'r', encoding='utf-8') as f:
+                report_content = f.read()
+            
+            output_path = os.path.join(results_dir, f"{sanitized_query}.{choice}")
+            print(f"\n⚙️ Generating {choice.upper()} export...")
+            
+            if choice == 'pdf':
+                ExportUtils.export_to_pdf(report_content, output_path)
+            elif choice == 'docx':
+                ExportUtils.export_to_docx(report_content, output_path)
+            elif choice == 'html':
+                ExportUtils.export_to_html(report_content, output_path)
+            elif choice == 'pptx':
+                ExportUtils.export_to_presentation(report_content, output_path)
+            
+            print(f"✅ Export complete! File saved to: {output_path}")
+            
+            export_another = input("\nWould you like to export in another format? (y/N): ").lower().strip()
+            if export_another != 'y':
+                break
+                
+        except Exception as e:
+            print(f"❌ Export failed: {str(e)}")
+            print("Please try again or skip export.")
+    
     print(f"{'='*80}")
 
 if __name__ == "__main__":
@@ -114,7 +165,7 @@ if __name__ == "__main__":
         })
 
     questions_and_answers = "\n".join(
-        [f"{answer['question']}: {answer['answer']}" for answer in answers])
+        [f"{answer['question']}: {answer['answer']}"] for answer in answers)
 
     combined_query = f"Initial query: {args.query}\n\n Follow up questions and answers: {questions_and_answers}"
 
@@ -147,11 +198,5 @@ if __name__ == "__main__":
     
     # Display summary of the research
     display_summary(results, elapsed_time)
-
-    # Save the report to a file
-    with open("final_report.md", "w", encoding="utf-8") as f:
-        f.write(final_report)
-        f.write(
-            f"\n\nTotal research time: {int(elapsed_time // 60)} minutes and {int(elapsed_time % 60)} seconds")
     
-    print("\n📝 Open final_report.md to view your complete research results")
+    print(f"\n📝 Open {os.path.join('results', f'report_{results.get("sanitized_query", "research")}.md')} to view your complete research results")

@@ -97,38 +97,85 @@ class ExportUtils:
         """
         html_content = ExportUtils.markdown_to_html(markdown_content)
         
+        # Add print/export specific CSS
+        print_css = """
+        <style>
+            @page {
+                margin: 2.5cm;
+                @top-right {
+                    content: counter(page);
+                }
+            }
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                font-size: 11pt;
+            }
+            pre, code {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+            }
+        </style>
+        """
+        html_content = html_content.replace('</head>', f'{print_css}</head>')
+
+        success = False
+        error_msg = ""
+        
+        # Try pdfkit first if available
         if method == 'pdfkit':
             try:
-                # Using pdfkit (requires wkhtmltopdf installed)
+                import pdfkit
                 options = {
                     'page-size': 'A4',
-                    'margin-top': '20mm',
-                    'margin-right': '20mm',
-                    'margin-bottom': '20mm',
-                    'margin-left': '20mm',
+                    'margin-top': '25mm',
+                    'margin-right': '25mm',
+                    'margin-bottom': '25mm',
+                    'margin-left': '25mm',
                     'encoding': 'UTF-8',
+                    'enable-local-file-access': True,
+                    'print-media-type': True,
                 }
                 pdfkit.from_string(html_content, output_path, options=options)
+                success = True
+            except ImportError:
+                error_msg = "pdfkit not available"
             except Exception as e:
-                # Fallback to weasyprint if pdfkit fails
-                print(f"Error with pdfkit: {str(e)}. Falling back to weasyprint.")
-                method = 'weasyprint'
+                error_msg = f"pdfkit error: {str(e)}"
         
-        if method == 'weasyprint':
-            # Using WeasyPrint
-            with tempfile.NamedTemporaryFile(suffix='.html', mode='w', encoding='utf-8', delete=False) as f:
-                f.write(html_content)
-                temp_html_path = f.name
-            
-            # Convert to PDF
-            HTML(filename=temp_html_path).write_pdf(output_path)
-            
-            # Clean up temporary file
+        # Try WeasyPrint if pdfkit fails
+        if not success:
             try:
-                os.remove(temp_html_path)
-            except:
-                pass
+                # Create a temporary HTML file
+                with tempfile.NamedTemporaryFile(suffix='.html', mode='w', encoding='utf-8', delete=False) as f:
+                    f.write(html_content)
+                    temp_html_path = f.name
+                
+                try:
+                    # Convert to PDF using WeasyPrint
+                    HTML(filename=temp_html_path).write_pdf(output_path)
+                    success = True
+                except Exception as e:
+                    error_msg += f"\nWeasyPrint error: {str(e)}"
+                finally:
+                    # Clean up temporary file
+                    try:
+                        os.remove(temp_html_path)
+                    except:
+                        pass
+                        
+            except ImportError:
+                error_msg += "\nWeasyPrint not available"
+            except Exception as e:
+                error_msg += f"\nWeasyPrint error: {str(e)}"
         
+        if not success:
+            raise RuntimeError(f"PDF export failed: {error_msg}\nPlease install required dependencies: pip install weasyprint pdfkit")
+            
         return output_path
 
     @staticmethod

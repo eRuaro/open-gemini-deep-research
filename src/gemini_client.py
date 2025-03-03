@@ -22,7 +22,7 @@ class GeminiClient:
             {"name": "gemini-2.0-pro-exp-02-05", "retries": 0, "last_error_time": 0},
             {"name": "gemini-2.0-flash-thinking-exp-01-21", "retries": 0, "last_error_time": 0},
             {"name": "gemini-1.5-pro", "retries": 0, "last_error_time": 0},
-            {"name": "gemini-1.5-flash", "retries": 0, "last_error_time": 0}
+            {"name": "gemini-2.0-flash-exp", "retries": 0, "last_error_time": 0}
         ]
         
         # Task-specific model mapping
@@ -255,19 +255,32 @@ class GeminiClient:
         if generation_config.get("response_mime_type") not in allowed_mimetypes:
             generation_config["response_mime_type"] = "application/json"
 
-        # Filter out unsupported schema fields (e.g. 'additionalProperties') to avoid errors
-        filtered_schema = {k: v for k, v in schema.items() if k != 'additionalProperties'}
+        # Create a deep copy to avoid modifying the original schema
+        filtered_schema = json.loads(json.dumps(schema))
         
-        # Ensure properties exist for OBJECT type schemas to avoid the error
-        if filtered_schema.get('type') == 'OBJECT' and 'properties' not in filtered_schema:
-            filtered_schema['properties'] = {}
+        # Remove 'additionalProperties' at the top level
+        if 'additionalProperties' in filtered_schema:
+            del filtered_schema['additionalProperties']
         
-        # Handle nested object types that might be missing properties
-        if 'properties' in filtered_schema:
-            for prop_name, prop_schema in filtered_schema['properties'].items():
-                if isinstance(prop_schema, dict) and prop_schema.get('type') == 'OBJECT' and 'properties' not in prop_schema:
-                    filtered_schema['properties'][prop_name]['properties'] = {}
-
+        def ensure_properties(schema_part: dict):
+            """Recursively ensures 'properties' exists and is non-empty for 'OBJECT' type."""
+            if isinstance(schema_part, dict):
+                if schema_part.get('type') == 'OBJECT':
+                    if 'properties' not in schema_part:
+                        schema_part['properties'] = {}  # Add if missing
+                    elif not schema_part['properties']: # Check for empty dict
+                        schema_part['properties'] = {"_placeholder": {"type": "STRING"}} # Make non-empty
+                
+                # Recurse into properties and items
+                if 'properties' in schema_part:
+                    for k, v in schema_part['properties'].items():
+                        ensure_properties(v)
+                if 'items' in schema_part:
+                    ensure_properties(schema_part['items'])
+        
+        # Ensure 'properties' exists and is non-empty for all OBJECT types
+        ensure_properties(filtered_schema)
+        
         generation_config["response_schema"] = content.Schema(**filtered_schema)
 
         def make_api_call():
