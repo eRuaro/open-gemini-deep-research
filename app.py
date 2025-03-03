@@ -9,6 +9,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from src.deep_research import DeepSearch
+from src.export_utils import ExportUtils  # Import the new export utilities
 
 # Load environment variables
 load_dotenv()
@@ -1097,6 +1098,89 @@ def main():
                     ),
                     unsafe_allow_html=True
                 )
+                
+            # Add new export options section
+            st.markdown("""
+            <div style="margin-top: 20px; background-color: rgba(75, 111, 255, 0.05); border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <p style="font-weight: 600; color: #4b6fff; margin-bottom: 10px;">Export Options</p>
+                <p class="info-text">Export your research report to various formats for sharing and presentation</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Create export buttons in a row
+            export_col1, export_col2, export_col3, export_col4 = st.columns(4)
+            
+            with export_col1:
+                if st.button("📄 Export to PDF", use_container_width=True):
+                    with st.spinner("Generating PDF..."):
+                        output_path = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)), 
+                            "results", 
+                            f"{results['sanitized_query']}.pdf"
+                        )
+                        pdf_path = ExportUtils.export_to_pdf(report_content, output_path)
+                        st.success("PDF generated successfully!")
+                        st.markdown(
+                            ExportUtils.get_file_download_link(
+                                pdf_path,
+                                label="Download PDF"
+                            ),
+                            unsafe_allow_html=True
+                        )
+                
+            with export_col2:
+                if st.button("📝 Export to DOCX", use_container_width=True):
+                    with st.spinner("Generating DOCX..."):
+                        output_path = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)), 
+                            "results", 
+                            f"{results['sanitized_query']}.docx"
+                        )
+                        docx_path = ExportUtils.export_to_docx(report_content, output_path)
+                        st.success("DOCX generated successfully!")
+                        st.markdown(
+                            ExportUtils.get_file_download_link(
+                                docx_path,
+                                label="Download DOCX"
+                            ),
+                            unsafe_allow_html=True
+                        )
+                
+            with export_col3:
+                if st.button("🌐 Export to HTML", use_container_width=True):
+                    with st.spinner("Generating HTML..."):
+                        output_path = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)), 
+                            "results", 
+                            f"{results['sanitized_query']}.html"
+                        )
+                        html_path = ExportUtils.export_to_html(report_content, output_path)
+                        st.success("HTML generated successfully!")
+                        st.markdown(
+                            ExportUtils.get_file_download_link(
+                                html_path,
+                                label="Download HTML"
+                            ),
+                            unsafe_allow_html=True
+                        )
+                
+            with export_col4:
+                if st.button("🎞️ Export to Presentation", use_container_width=True):
+                    with st.spinner("Generating presentation..."):
+                        output_path = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)), 
+                            "results", 
+                            f"{results['sanitized_query']}.pptx"
+                        )
+                        pptx_path = ExportUtils.export_to_presentation(report_content, output_path)
+                        st.success("Presentation generated successfully!")
+                        st.markdown(
+                            ExportUtils.get_file_download_link(
+                                pptx_path,
+                                label="Download PPTX"
+                            ),
+                            unsafe_allow_html=True
+                        )
         else:
             st.write("Final report not available.")
             

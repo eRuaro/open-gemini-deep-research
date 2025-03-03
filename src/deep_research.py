@@ -960,7 +960,9 @@ class DeepSearch:
             
             # Generate section with parameters adjusted for analytical content
             section_content = self.generate_report_chunk(section_prompt, "analysis")
-            sections_text += f"## {section_title}\n\n{section_content}\n\n"
+            # Fix: Remove any existing ## headings that might cause duplications
+            cleaned_content = self._clean_section_headings(section_content)
+            sections_text += f"## {section_title}\n\n{cleaned_content}\n\n"
 
         # Generate Sources section with proper citations
         sources_list = "\n".join([
@@ -968,6 +970,8 @@ class DeepSearch:
         ])
         sources_prompt = f"Based on the following sources:\n{sources_list}\nGenerate a formatted sources section with proper citations."
         sources_text = self.generate_report_chunk(sources_prompt, "technical")
+        # Fix: Clean section headings in sources text
+        sources_text = self._clean_section_headings(sources_text)
 
         # Generate Conclusion section
         conclusion_prompt = f"""
@@ -982,6 +986,8 @@ class DeepSearch:
         Make sure the conclusion effectively ties together the main themes discussed in the report.
         """
         conclusion_text = self.generate_report_chunk(conclusion_prompt, "conclusion")
+        # Fix: Clean section headings in conclusion text
+        conclusion_text = self._clean_section_headings(conclusion_text)
 
         # Combine all sections into the final report
         report_content = "# Final Research Report: " + query + "\n\n" + \
@@ -1098,7 +1104,9 @@ class DeepSearch:
             
             # Add sections in the correct order
             for i, ((section_title, _), content) in enumerate(zip(batch, batch_results)):
-                sections_text += f"## {section_title}\n\n{content}\n\n"
+                # Fix: Remove any existing ## headings that might cause duplications
+                cleaned_content = self._clean_section_headings(content)
+                sections_text += f"## {section_title}\n\n{cleaned_content}\n\n"
                 print(f"✓ Section '{section_title}' completed")
                 
             # Short delay between batches to avoid rate limits
@@ -1108,6 +1116,10 @@ class DeepSearch:
         # Execute sources and conclusion
         print("Generating sources and conclusion...")
         sources_text, conclusion_text = await asyncio.gather(tasks[-2], tasks[-1])
+        
+        # Fix: Clean section headings in sources and conclusion too
+        sources_text = self._clean_section_headings(sources_text)
+        conclusion_text = self._clean_section_headings(conclusion_text)
         
         # Combine all sections into the final report
         report_content = "# Final Research Report: " + query + "\n\n" + \
@@ -1226,4 +1238,156 @@ class DeepSearch:
         
         return result
 
-    # ...existing methods...
+    def _clean_section_headings(self, content: str) -> str:
+        """
+        Remove duplicate headings from section content to avoid formatting issues.
+        This removes any markdown headings (##, ###, etc.) at the beginning of the content
+        or duplicate section titles that might cause repetition in the final report.
+        """
+        # Remove headings at the beginning of the content
+        lines = content.split('\n')
+        cleaned_lines = []
+        
+        for i, line in enumerate(lines):
+            # Skip lines that start with heading markers (##, ###) at the beginning of content
+            if i == 0 and line.strip().startswith('#'):
+                continue
+            # Skip second line if it's empty and preceded by a heading (common pattern)
+            elif i == 1 and not line.strip() and lines[0].strip().startswith('#'):
+                continue
+            else:
+                cleaned_lines.append(line)
+        
+        # Re-join the cleaned lines
+        return '\n'.join(cleaned_lines)
+
+    def get_research_results(self, sanitized_query):
+        """
+        Load and return the saved research results for a given query.
+        
+        :param sanitized_query: The sanitized query name used to save the research
+        :return: Dictionary containing research results or None if not found
+        """
+        tree_filename = os.path.join(self.results_dir, f"research_tree_{sanitized_query}.json")
+        report_filename = os.path.join(self.results_dir, f"report_{sanitized_query}.md")
+        
+        results = {"tree": None, "report": None}
+        
+        # Try to load the research tree
+        try:
+            if os.path.exists(tree_filename):
+                with open(tree_filename, "r") as f:
+                    results["tree"] = json.load(f)
+                print(f"✓ Loaded research tree from {tree_filename}")
+        except Exception as e:
+            print(f"Error loading research tree: {str(e)}")
+        
+        # Try to load the report
+        try:
+            if os.path.exists(report_filename):
+                with open(report_filename, "r", encoding="utf-8") as f:
+                    results["report"] = f.read()
+                print(f"✓ Loaded research report from {report_filename}")
+        except Exception as e:
+            print(f"Error loading research report: {str(e)}")
+            
+        return results if results["tree"] or results["report"] else None
+    
+    def summarize_research_tree(self, tree):
+        """
+        Generate a text summary of the research tree.
+        
+        :param tree: The research tree structure
+        :return: A text summary of the research process
+        """
+        if not tree:
+            return "No research tree available."
+            
+        summary_lines = ["# Research Process Summary"]
+        
+        def process_node(node, depth=0):
+            indent = "  " * depth
+            status_icon = "✅" if node["status"] == "completed" else "🔄"
+            
+            # Add node to summary
+            summary_lines.append(f"{indent}{status_icon} Query: {node['query']}")
+            
+            # Add learnings count
+            if node["learnings"]:
+                summary_lines.append(f"{indent}  📝 {len(node['learnings'])} learnings")
+                
+                # Add top 3 learnings as examples
+                for i, learning in enumerate(node["learnings"][:3]):
+                    summary_lines.append(f"{indent}    • {learning}")
+                    
+                if len(node["learnings"]) > 3:
+                    summary_lines.append(f"{indent}    ... and {len(node['learnings']) - 3} more")
+            
+            # Process children
+            if node["sub_queries"]:
+                summary_lines.append(f"{indent}  🔍 Follow-up queries: {len(node['sub_queries'])}")
+                for child in node["sub_queries"]:
+                    process_node(child, depth + 1)
+        
+        # Start processing from the root
+        process_node(tree)
+        
+        return "\n".join(summary_lines)
+    
+    def export_research_data(self, research_tree, output_format="json"):
+        """
+        Export the research data in different formats for further analysis.
+        
+        :param research_tree: The research tree structure
+        :param output_format: The format to export ("json", "csv", or "txt")
+        :return: Path to the exported file
+        """
+        if not research_tree:
+            return None
+            
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        if output_format == "json":
+            # Export full tree as JSON (already implemented with saving the tree)
+            export_path = os.path.join(self.results_dir, f"research_export_{timestamp}.json")
+            with open(export_path, "w") as f:
+                json.dump(research_tree, f, indent=2)
+        
+        elif output_format == "csv":
+            # Export flattened data as CSV
+            export_path = os.path.join(self.results_dir, f"research_export_{timestamp}.csv")
+            with open(export_path, "w", encoding="utf-8") as f:
+                f.write("query,depth,status,num_learnings,num_sub_queries,parent_query\n")
+                
+                def process_node(node):
+                    rows = []
+                    # Create CSV row for this node
+                    row = [
+                        f'"{node["query"].replace(chr(34), chr(34)+chr(34))}"',  # Escape quotes in CSV
+                        str(node["depth"]),
+                        node["status"],
+                        str(len(node["learnings"])),
+                        str(len(node["sub_queries"])),
+                        f'"{node["parent_query"].replace(chr(34), chr(34)+chr(34))}"' if node["parent_query"] else '""'
+                    ]
+                    rows.append(",".join(row))
+                    
+                    # Process child nodes
+                    for child in node["sub_queries"]:
+                        rows.extend(process_node(child))
+                    
+                    return rows
+                
+                # Write all rows
+                f.write("\n".join(process_node(research_tree)))
+        
+        elif output_format == "txt":
+            # Export as readable text summary
+            export_path = os.path.join(self.results_dir, f"research_export_{timestamp}.txt")
+            with open(export_path, "w", encoding="utf-8") as f:
+                f.write(self.summarize_research_tree(research_tree))
+        
+        else:
+            return None
+            
+        return export_path

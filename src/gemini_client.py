@@ -20,9 +20,19 @@ class GeminiClient:
         self.models = [
             {"name": "gemini-2.0-flash", "retries": 0, "last_error_time": 0},
             {"name": "gemini-2.0-pro-exp-02-05", "retries": 0, "last_error_time": 0},
+            {"name": "gemini-2.0-flash-thinking-exp-01-21", "retries": 0, "last_error_time": 0},
             {"name": "gemini-1.5-pro", "retries": 0, "last_error_time": 0},
             {"name": "gemini-1.5-flash", "retries": 0, "last_error_time": 0}
         ]
+        
+        # Task-specific model mapping
+        self.task_models = {
+            "research_evaluation": "gemini-2.0-flash-thinking-exp-01-21",  # For evaluating research quality and guiding
+            "content_generation": "gemini-2.0-pro-exp-02-05",   # For deep analysis and content generation
+            "search_processing": "gemini-2.0-flash",  # For fast processing of search results
+            "fallback": "gemini-1.5-pro"  # Fallback model if others fail
+        }
+        
         self.current_model_index = 0  # Start with the first model
         self.max_retries = 3  # Maximum number of retries per model
         self.cooldown_period = 60  # Cooldown period for a model in seconds after a 429
@@ -33,6 +43,10 @@ class GeminiClient:
     def get_current_model(self) -> str:
         """Get the current model to use for API calls"""
         return self.models[self.current_model_index]["name"]
+    
+    def get_model_for_task(self, task: str) -> str:
+        """Get the appropriate model for a specific task"""
+        return self.task_models.get(task, self.task_models["fallback"])
 
     def rotate_model(self, error_code=None) -> str:
         """Rotate to the next available model based on error status"""
@@ -178,10 +192,10 @@ class GeminiClient:
             print(f"Error processing grounding metadata: {e}")
             return answer, {}
     
-    def generate_content(self, prompt: str, generation_config: Dict[str, Any], research_type: Optional[str] = None) -> Any:
+    def generate_content(self, prompt: str, generation_config: Dict[str, Any], research_type: Optional[str] = None, task_type: Optional[str] = None) -> Any:
         """
-        Generate content using the current model with the specified config.
-        Optionally adjust scaling based on the user chosen research type.
+        Generate content using the appropriate model with the specified config.
+        Optionally adjust scaling based on the user chosen research type and task.
         """
         # Scale max_output_tokens based on research type
         if research_type:
@@ -201,17 +215,22 @@ class GeminiClient:
             generation_config["response_mime_type"] = "text/plain"
 
         def make_api_call():
+            # Select model based on task if specified
+            model_name = self.get_model_for_task(task_type) if task_type else self.get_current_model()
+            
+            print(f"Using model {model_name} for task: {task_type or 'general'}")
+            
             model = genai.GenerativeModel(
-                self.get_current_model(),
+                model_name,
                 generation_config=generation_config,
             )
             return model.generate_content(prompt)
         
         return self.execute_with_retry(make_api_call)
     
-    def generate_json_content(self, prompt: str, schema: Dict[str, Any], research_type: Optional[str] = None) -> Dict[str, Any]:
+    def generate_json_content(self, prompt: str, schema: Dict[str, Any], research_type: Optional[str] = None, task_type: Optional[str] = None) -> Dict[str, Any]:
         """
-        Generate JSON content using the specified schema and adjust scaling based on research type.
+        Generate JSON content using the specified schema and adjust scaling based on research type and task.
         """
         generation_config = {
             "temperature": 1,
@@ -252,8 +271,13 @@ class GeminiClient:
         generation_config["response_schema"] = content.Schema(**filtered_schema)
 
         def make_api_call():
+            # Select model based on task if specified
+            model_name = self.get_model_for_task(task_type) if task_type else self.get_current_model()
+            
+            print(f"Using model {model_name} for task: {task_type or 'general'}")
+            
             model = genai.GenerativeModel(
-                self.get_current_model(),
+                model_name,
                 generation_config=generation_config,
             )
             response = model.generate_content(prompt)
@@ -282,7 +306,8 @@ class GeminiClient:
                 "tools": [google_search_tool]
             }
 
-            model_id = self.get_current_model()
+            # Use the search_processing model specifically for search
+            model_id = self.get_model_for_task("search_processing")
             
             response = client.models.generate_content(
                 model=model_id,

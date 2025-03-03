@@ -4,3 +4,10 @@ python-dotenv==1.0.1
 streamlit==1.30.0
 numpy==1.24.3
 pandas==2.0.3
+pdfkit==1.0.0
+python-docx==1.0.1
+fpdf==1.7.2
+weasyprint==60.2
+python-pptx==0.6.21
+markdown2==2.4.10
+streamlit-javascript==0.1.5
